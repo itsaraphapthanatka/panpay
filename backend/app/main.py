@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import auth, charges, checkout, dashboard, embed, membership, portal
+from .routers import admin, auth, charges, checkout, dashboard, embed, membership, portal
 
 # Use uvicorn's logger so scheduler messages appear in the server logs.
 logger = logging.getLogger("uvicorn.error")
@@ -36,8 +36,34 @@ async def _scheduler_loop() -> None:
             logger.exception("renewal job failed")
 
 
+def _bootstrap_admin() -> None:
+    """Create the first platform admin from env settings if none exists yet."""
+    if not (settings.admin_bootstrap_email and settings.admin_bootstrap_password):
+        return
+    from .database import SessionLocal
+    from .models import AdminUser
+    from .security import hash_password
+
+    db = SessionLocal()
+    try:
+        if db.query(AdminUser).count() > 0:
+            return
+        db.add(
+            AdminUser(
+                email=settings.admin_bootstrap_email,
+                password_hash=hash_password(settings.admin_bootstrap_password),
+                name="Admin",
+            )
+        )
+        db.commit()
+        logger.info("bootstrapped platform admin: %s", settings.admin_bootstrap_email)
+    finally:
+        db.close()
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    _bootstrap_admin()
     task = None
     if settings.run_scheduler:
         logger.info("starting in-process renewal scheduler (every %sh)", settings.scheduler_interval_hours)
@@ -73,6 +99,7 @@ def health():
 
 
 app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(dashboard.router)
 app.include_router(charges.router)
 app.include_router(checkout.router)

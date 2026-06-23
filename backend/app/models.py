@@ -25,6 +25,19 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class AdminUser(Base):
+    """Platform operator who oversees every merchant on the gateway."""
+
+    __tablename__ = "admin_users"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: "adm_" + _uuid())
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String, default="Admin")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class Merchant(Base):
     __tablename__ = "merchants"
 
@@ -32,6 +45,8 @@ class Merchant(Base):
     email: Mapped[str] = mapped_column(String, unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String)
     business_name: Mapped[str] = mapped_column(String)
+    # Suspended merchants are blocked from authenticating (dashboard + API).
+    suspended: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # PromptPay proxy that receives the money (phone / national id / e-wallet id)
     promptpay_id: Mapped[str | None] = mapped_column(String, nullable=True)
     webhook_url: Mapped[str | None] = mapped_column(String, nullable=True)

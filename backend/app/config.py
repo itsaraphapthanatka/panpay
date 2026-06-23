@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 720
     jwt_algorithm: str = "HS256"
 
+    # Platform admin bootstrap: if both are set, the first admin is created on
+    # startup when no admin exists yet. Leave blank in favour of create_admin.py.
+    admin_bootstrap_email: str = ""
+    admin_bootstrap_password: str = ""
+
     checkout_base_url: str = "http://localhost:5173"
     cors_origins: str = "http://localhost:5173"
 

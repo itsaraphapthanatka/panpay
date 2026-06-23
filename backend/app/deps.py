@@ -2,8 +2,8 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from .models import ApiKey, Merchant, utcnow
-from .security import decode_access_token, hash_api_key
+from .models import AdminUser, ApiKey, Merchant, utcnow
+from .security import decode_access_token, decode_admin_token, hash_api_key
 
 
 def get_current_merchant(
@@ -20,7 +20,26 @@ def get_current_merchant(
     merchant = db.get(Merchant, merchant_id)
     if not merchant:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Merchant not found")
+    if merchant.suspended:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Merchant account suspended")
     return merchant
+
+
+def get_current_admin(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> AdminUser:
+    """Platform admin auth via JWT bearer token (typ=admin)."""
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Missing bearer token")
+    token = authorization.split(" ", 1)[1].strip()
+    admin_id = decode_admin_token(token)
+    if not admin_id:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    admin = db.get(AdminUser, admin_id)
+    if not admin:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Admin not found")
+    return admin
 
 
 def get_api_merchant(
@@ -52,4 +71,6 @@ def get_api_merchant(
     merchant = db.get(Merchant, api_key.merchant_id)
     if not merchant:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Merchant not found")
+    if merchant.suspended:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Merchant account suspended")
     return merchant

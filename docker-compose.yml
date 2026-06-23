@@ -2,6 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: panpay-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: panpay
       POSTGRES_PASSWORD: panpay
@@ -19,6 +20,7 @@ services:
   backend:
     build: ./backend
     container_name: panpay-backend
+    restart: unless-stopped
     # Loads SMTP_* / LINE_* (and other) secrets from the gitignored backend/.env.
     # Keys also set under `environment:` below take precedence (container networking).
     env_file:
@@ -44,6 +46,7 @@ services:
       args:
         VITE_API_URL: /api
     container_name: panpay-frontend
+    restart: unless-stopped
     depends_on:
       - backend
     ports:

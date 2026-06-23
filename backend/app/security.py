@@ -54,6 +54,31 @@ def create_access_token(merchant_id: str) -> str:
 def decode_access_token(token: str) -> str | None:
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        # Admin tokens must never authenticate a merchant session.
+        if payload.get("typ") == "admin":
+            return None
+        return payload.get("sub")
+    except jwt.PyJWTError:
+        return None
+
+
+# ---- Admin JWT sessions ----
+def create_admin_token(admin_id: str) -> str:
+    now = utcnow()
+    payload = {
+        "sub": admin_id,
+        "typ": "admin",
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
+    }
+    return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_admin_token(token: str) -> str | None:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        if payload.get("typ") != "admin":
+            return None
         return payload.get("sub")
     except jwt.PyJWTError:
         return None

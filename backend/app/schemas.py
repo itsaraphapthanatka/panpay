@@ -334,6 +334,62 @@ class SubscriptionDetail(BaseModel):
     invoices: list[ChargeOut]
 
 
+# ---- Admin (platform operator) ----
+class AdminOut(BaseModel):
+    id: str
+    email: str
+    name: str
+    created_at: datetime
+    last_login_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class AdminMerchantOut(BaseModel):
+    """A merchant row in the admin console, enriched with rollup stats."""
+
+    id: str
+    email: str
+    business_name: str
+    promptpay_id: str | None
+    suspended: bool
+    fee_percent: float
+    fee_fixed: float
+    created_at: datetime
+    charge_count: int = 0
+    paid_count: int = 0
+    paid_amount: float = 0
+    pending_count: int = 0
+
+
+class AdminMerchantUpdate(BaseModel):
+    fee_percent: float | None = Field(default=None, ge=0, le=100)
+    fee_fixed: float | None = Field(default=None, ge=0)
+    suspended: bool | None = None
+
+
+class AdminChargeOut(ChargeOut):
+    merchant_id: str
+    business_name: str
+
+
+class AdminSettlementOut(SettlementOut):
+    merchant_id: str
+    business_name: str
+
+
+class AdminStats(BaseModel):
+    merchant_count: int
+    suspended_count: int
+    total_paid_amount: float
+    paid_count: int
+    pending_count: int
+    today_amount: float
+    today_count: int
+    total_fee_amount: float  # net fees collected across paid-out settlements
+
+
 # ---- Dashboard ----
 class DashboardStats(BaseModel):
     total_paid_amount: float

@@ -1,6 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const TOKEN_KEY = "panpay_token";
+const ADMIN_TOKEN_KEY = "panpay_admin_token";
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -9,10 +10,17 @@ export function setToken(t) {
   if (t) localStorage.setItem(TOKEN_KEY, t);
   else localStorage.removeItem(TOKEN_KEY);
 }
+export function getAdminToken() {
+  return localStorage.getItem(ADMIN_TOKEN_KEY);
+}
+export function setAdminToken(t) {
+  if (t) localStorage.setItem(ADMIN_TOKEN_KEY, t);
+  else localStorage.removeItem(ADMIN_TOKEN_KEY);
+}
 
-async function request(path, { method = "GET", body, auth = true, form } = {}) {
+async function request(path, { method = "GET", body, auth = true, admin = false, form } = {}) {
   const headers = {};
-  const token = getToken();
+  const token = admin ? getAdminToken() : getToken();
   if (auth && token) headers["Authorization"] = `Bearer ${token}`;
 
   let payload;
@@ -89,6 +97,32 @@ export const api = {
   checkout: (id) => request(`/checkout/${id}`, { auth: false }),
   submitSlip: (id, formData) =>
     request(`/checkout/${id}/slip`, { method: "POST", form: formData, auth: false }),
+};
+
+// Platform admin console (separate token, typ=admin).
+export const adminApi = {
+  login: (b) => request("/admin/login", { method: "POST", body: b, auth: false }),
+  me: () => request("/admin/me", { admin: true }),
+  stats: () => request("/admin/stats", { admin: true }),
+  merchants: (q) => request(`/admin/merchants${q ? `?q=${encodeURIComponent(q)}` : ""}`, { admin: true }),
+  merchant: (id) => request(`/admin/merchants/${id}`, { admin: true }),
+  updateMerchant: (id, b) => request(`/admin/merchants/${id}`, { method: "PATCH", body: b, admin: true }),
+  charges: ({ merchantId, status } = {}) => {
+    const p = new URLSearchParams();
+    if (merchantId) p.set("merchant_id", merchantId);
+    if (status) p.set("status", status);
+    const qs = p.toString();
+    return request(`/admin/charges${qs ? `?${qs}` : ""}`, { admin: true });
+  },
+  settlements: (merchantId) =>
+    request(`/admin/settlements${merchantId ? `?merchant_id=${merchantId}` : ""}`, { admin: true }),
+  auditLogs: ({ merchantId, action } = {}) => {
+    const p = new URLSearchParams();
+    if (merchantId) p.set("merchant_id", merchantId);
+    if (action) p.set("action", action);
+    const qs = p.toString();
+    return request(`/admin/audit-logs${qs ? `?${qs}` : ""}`, { admin: true });
+  },
 };
 
 // Download an authenticated file (e.g. CSV) by fetching with the token then

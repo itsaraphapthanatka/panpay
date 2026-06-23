@@ -86,6 +86,7 @@ pip install -r requirements.txt
 cp .env.example .env          # defaults already target the local Postgres above
 alembic upgrade head          # create/upgrade the schema (Alembic-managed)
 python seed.py                # creates a demo merchant + prints an API key (also runs migrations)
+python create_admin.py admin@panpay.io changeme   # create a platform admin (also runs migrations)
 uvicorn app.main:app --reload --port 8000
 ```
 API docs: http://localhost:8000/docs
@@ -104,6 +105,12 @@ npm run dev                   # http://localhost:5173
 ```
 
 **Demo login:** `demo@panpay.io` / `demo1234`
+
+**Admin console:** http://localhost:5173/admin/login — the platform operator view across
+every merchant (oversee merchants, adjust fees, suspend accounts, browse all
+transactions/settlements, and the platform-wide audit log). Create an admin with
+`python create_admin.py <email> <password>`, or set `ADMIN_BOOTSTRAP_EMAIL` /
+`ADMIN_BOOTSTRAP_PASSWORD` in the backend env to auto-create the first admin on startup.
 
 ---
 
