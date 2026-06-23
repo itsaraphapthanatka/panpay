@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PanPay — Embed Checkout Demo</title>
+    <style>
+      body { font-family: -apple-system, "Sarabun", sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #0f172a; }
+      h1 { font-size: 22px; }
+      code, pre { background: #f1f5f9; border-radius: 8px; }
+      pre { padding: 16px; overflow-x: auto; font-size: 13px; }
+      input { width: 100%; padding: 11px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; box-sizing: border-box; }
+      button { background: #4f46e5; color: #fff; border: 0; padding: 12px 18px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 14px; }
+      .muted { color: #64748b; font-size: 14px; }
+      .row { display: flex; gap: 10px; margin: 14px 0; }
+    </style>
+  </head>
+  <body>
+    <h1>PanPay — ปุ่มจ่ายเงินแบบฝัง (Embed)</h1>
+    <p class="muted">
+      ตัวอย่างการฝังหน้าจ่ายเงินลงในเว็บของร้านค้า ด้วยสคริปต์ <code>panpay.js</code> เพียงไฟล์เดียว
+      (popup ไม่ต้องเปลี่ยนหน้า)
+    </p>
+
+    <p class="muted">
+      1) สร้างรายการชำระเงินจาก Dashboard หรือเรียก <code>POST /v1/charges</code> ฝั่งเซิร์ฟเวอร์ของคุณ
+      เพื่อให้ได้ <code>charge id</code> แล้ววางด้านล่าง:
+    </p>
+
+    <div class="row">
+      <input id="chargeId" placeholder="chg_xxxxxxxxxxxx" />
+      <button onclick="openCheckout()">จ่ายเงิน</button>
+    </div>
+    <p id="result" class="muted"></p>
+
+    <h3>โค้ดที่ใช้</h3>
+    <pre>&lt;script src="http://localhost:8000/panpay.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  PanPay.checkout({
+    chargeId: "chg_xxxxxxxxxxxx",         // จาก POST /v1/charges ฝั่งเซิร์ฟเวอร์
+    onSuccess: function (e) { alert("ชำระเงินสำเร็จ! ยอด " + e.amount); },
+    onClose:   function () { console.log("ปิดหน้าต่าง"); }
+  });
+&lt;/script&gt;</pre>
+
+    <!-- In production, point this at your gateway's domain -->
+    <script src="http://localhost:8000/panpay.js"></script>
+    <script>
+      function openCheckout() {
+        var id = document.getElementById("chargeId").value.trim();
+        if (!id) return alert("กรอก charge id ก่อน");
+        document.getElementById("result").textContent = "";
+        PanPay.checkout({
+          chargeId: id,
+          onSuccess: function (e) {
+            document.getElementById("result").textContent =
+              "✓ ชำระเงินสำเร็จ ยอด ฿" + e.amount + " (charge " + e.chargeId + ")";
+          },
+        });
+      }
+    </script>
+  </body>
+</html>
