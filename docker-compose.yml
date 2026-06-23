@@ -6,8 +6,8 @@ services:
       POSTGRES_USER: panpay
       POSTGRES_PASSWORD: panpay
       POSTGRES_DB: panpay
-    ports:
-      - "5433:5432"   # 5433 on host to avoid clashing with a local Postgres
+    # ไม่ map host port — backend เข้าถึง db ผ่าน docker network (db:5432) อยู่แล้ว
+    # (host 5433 ชนกับ pet_transport_db ของอีกโปรเจกต์)
     volumes:
       - panpay_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,8 +26,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://panpay:panpay@db:5432/panpay
       JWT_SECRET: change-me-in-production-please-0123456789
-      CHECKOUT_BASE_URL: http://localhost:5173
-      CORS_ORIGINS: http://localhost:5173
+      CHECKOUT_BASE_URL: https://punpay.petgo.asia
+      CORS_ORIGINS: https://punpay.petgo.asia
       SLIP_PROVIDER: dev
       DEV_AUTO_VERIFY: "true"
       RUN_SCHEDULER: "true"          # in-process daily renewal job (single instance)
@@ -36,18 +36,18 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8001:8000"
 
   frontend:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://localhost:8000
+        VITE_API_URL: /api
     container_name: panpay-frontend
     depends_on:
       - backend
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
 
 volumes:
   panpay_pgdata:
