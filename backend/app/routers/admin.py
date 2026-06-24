@@ -23,7 +23,7 @@ from ..schemas import (
     SettlementOut,
     TokenResponse,
 )
-from ..security import create_admin_token, verify_password
+from ..security import create_access_token, create_admin_token, verify_password
 from ..serializers import charge_to_out
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -182,6 +182,32 @@ def update_merchant(
             target_type="merchant", target_id=merchant.id, request=request, extra=changes,
         )
     return _merchant_out(merchant, _merchant_rollups(db).get(merchant.id, {}))
+
+
+@router.post("/merchants/{merchant_id}/act-as")
+def act_as_merchant(
+    merchant_id: str,
+    request: Request,
+    admin: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Mint a merchant session token so an admin can manage the merchant's
+    dashboard with full merchant privileges. Logged for audit."""
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Merchant not found")
+    if merchant.suspended:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Merchant is suspended — unsuspend before managing"
+        )
+    audit.record(db, action="admin.act_as", actor=admin.email, merchant_id=merchant.id,
+                 target_type="merchant", target_id=merchant.id, request=request)
+    return {
+        "access_token": create_access_token(merchant.id),
+        "token_type": "bearer",
+        "merchant_id": merchant.id,
+        "business_name": merchant.business_name,
+    }
 
 
 def _merchant_out(merchant: Merchant, roll: dict) -> AdminMerchantOut:

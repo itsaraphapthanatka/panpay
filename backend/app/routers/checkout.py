@@ -9,19 +9,17 @@ from fastapi import (
     UploadFile,
     status,
 )
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..charge_ops import settle_charge_paid
 from ..database import get_db
-from ..models import Charge, Payment, Subscription, utcnow
+from ..models import Charge, utcnow
 from ..pdf_receipt import generate_receipt_pdf
 from ..promptpay import payload_to_data_uri
 from ..ratelimit import limit_slip
 from ..schemas import ChargePublic, PaymentOut
 from ..slip_qr import decode_qr
 from ..slip_verify import get_verifier
-from ..subscription_ops import advance_on_payment
-from ..webhooks import deliver_webhook, enqueue_charge_event, enqueue_subscription_event
 
 router = APIRouter(prefix="/checkout", tags=["checkout (public)"])
 
@@ -118,8 +116,8 @@ def submit_slip(
             f"Amount mismatch: slip {result.amount} != charge {float(charge.amount)}",
         )
 
-    payment = Payment(
-        charge_id=charge.id,
+    settle_charge_paid(
+        db, background, charge,
         trans_ref=result.trans_ref,
         amount=result.amount,
         sender_name=result.sender_name,
@@ -130,32 +128,4 @@ def submit_slip(
         provider=result.provider,
         raw=result.raw,
     )
-    db.add(payment)
-    charge.status = "paid"
-    charge.paid_at = utcnow()
-    try:
-        db.commit()
-    except IntegrityError:
-        # trans_ref already used -> this slip paid a different charge.
-        db.rollback()
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "This slip has already been used for another payment.",
-        )
-    db.refresh(charge)
-
-    # If this charge is a subscription invoice, activate/extend the membership.
-    if charge.subscription_id:
-        sub_event = advance_on_payment(db, charge)
-        if sub_event:
-            sub = db.get(Subscription, charge.subscription_id)
-            sub_delivery = enqueue_subscription_event(db, sub, charge.merchant, sub_event)
-            if sub_delivery:
-                background.add_task(deliver_webhook, sub_delivery.id, charge.merchant.webhook_secret)
-
-    # Fire the merchant webhook in the background.
-    delivery = enqueue_charge_event(db, charge, charge.merchant, "charge.paid")
-    if delivery:
-        background.add_task(deliver_webhook, delivery.id, charge.merchant.webhook_secret)
-
     return get_checkout(charge_id, db)

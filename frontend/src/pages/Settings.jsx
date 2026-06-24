@@ -77,7 +77,7 @@ function ReceivingAccounts({ onError }) {
 
 export default function Settings() {
   const { merchant, refresh } = useAuth();
-  const [form, setForm] = useState({ business_name: "", promptpay_id: "", webhook_url: "", fee_percent: "0", fee_fixed: "0" });
+  const [form, setForm] = useState({ business_name: "", promptpay_id: "", webhook_url: "" });
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -88,8 +88,6 @@ export default function Settings() {
         business_name: merchant.business_name || "",
         promptpay_id: merchant.promptpay_id || "",
         webhook_url: merchant.webhook_url || "",
-        fee_percent: String(merchant.fee_percent ?? 0),
-        fee_fixed: String(merchant.fee_fixed ?? 0),
       });
   }, [merchant]);
 
@@ -101,11 +99,7 @@ export default function Settings() {
     setMsg("");
     setBusy(true);
     try {
-      await api.updateSettings({
-        ...form,
-        fee_percent: parseFloat(form.fee_percent) || 0,
-        fee_fixed: parseFloat(form.fee_fixed) || 0,
-      });
+      await api.updateSettings(form);
       await refresh();
       setMsg("บันทึกแล้ว");
     } catch (e) {
@@ -137,16 +131,6 @@ export default function Settings() {
             <span className="lbl">Webhook URL (รับแจ้งเตือนเมื่อชำระ/คืนเงิน)</span>
             <input value={form.webhook_url} onChange={set("webhook_url")} placeholder="https://your-shop.com/webhook" />
           </label>
-          <div style={{ display: "flex", gap: 10 }}>
-            <label className="field" style={{ flex: 1 }}>
-              <span className="lbl">ค่าธรรมเนียม (%)</span>
-              <input type="number" step="0.01" min="0" max="100" value={form.fee_percent} onChange={set("fee_percent")} />
-            </label>
-            <label className="field" style={{ flex: 1 }}>
-              <span className="lbl">ค่าธรรมเนียมคงที่/รายการ (฿)</span>
-              <input type="number" step="0.01" min="0" value={form.fee_fixed} onChange={set("fee_fixed")} />
-            </label>
-          </div>
           <button className="btn" disabled={busy}>
             {busy ? "กำลังบันทึก…" : "บันทึกการตั้งค่า"}
           </button>

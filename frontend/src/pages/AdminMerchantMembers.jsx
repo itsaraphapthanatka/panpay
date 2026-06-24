@@ -1,23 +1,98 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { api } from "../api.js";
+import { Link, useParams } from "react-router-dom";
+import { adminApi } from "../api.js";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH") : "—");
 
 const SUB_LABELS = { pending: "รอชำระ", active: "ใช้งาน", past_due: "ครบกำหนด", expired: "หมดอายุ", canceled: "ยกเลิก" };
 const SUB_BADGE = { pending: "pending", active: "paid", past_due: "refunded", expired: "expired", canceled: "canceled" };
+const intervalText = (u, c) => `ทุก ${c > 1 ? c + " " : ""}${{ day: "วัน", month: "เดือน", year: "ปี" }[u]}`;
+
+function Plans({ mid, plans, reload, onError }) {
+  const [form, setForm] = useState({ name: "", amount: "", interval_unit: "month", interval_count: 1 });
+
+  async function add(e) {
+    e.preventDefault();
+    try {
+      await adminApi.mCreatePlan(mid, {
+        name: form.name,
+        amount: parseFloat(form.amount),
+        interval_unit: form.interval_unit,
+        interval_count: parseInt(form.interval_count) || 1,
+      });
+      setForm({ name: "", amount: "", interval_unit: "month", interval_count: 1 });
+      reload();
+    } catch (e) {
+      onError(e.message);
+    }
+  }
+
+  return (
+    <div className="card">
+      <strong>แผนสมาชิก</strong>
+      <p className="muted" style={{ fontSize: 13 }}>แพ็กเกจที่ลูกค้าสมัครเป็นสมาชิกและจ่ายตามรอบ</p>
+      <table style={{ marginTop: 6 }}>
+        <tbody>
+          {plans.map((p) => (
+            <tr key={p.id}>
+              <td>{p.name}{!p.active && <span className="badge canceled" style={{ marginLeft: 8 }}>ปิด</span>}</td>
+              <td>{baht(p.amount)}</td>
+              <td className="muted">{intervalText(p.interval_unit, p.interval_count)}</td>
+              <td style={{ textAlign: "right" }}>
+                {p.active && (
+                  <button className="btn ghost" style={{ padding: "4px 10px", marginRight: 6 }}
+                          onClick={() => adminApi.mUpdatePlan(mid, p.id, { active: false }).then(reload).catch((e) => onError(e.message))}>
+                    ปิดใช้งาน
+                  </button>
+                )}
+                <button className="btn danger" style={{ padding: "4px 10px" }}
+                        onClick={() => adminApi.mDeletePlan(mid, p.id).then(reload).catch((e) => onError(e.message))}>
+                  ลบ
+                </button>
+              </td>
+            </tr>
+          ))}
+          {plans.length === 0 && <tr><td className="muted" style={{ padding: 12 }}>ยังไม่มีแผน</td></tr>}
+        </tbody>
+      </table>
+      <form onSubmit={add} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
+        <label className="field" style={{ flex: 2, marginBottom: 0, minWidth: 140 }}>
+          <span className="lbl">ชื่อแผน</span>
+          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Gold" required />
+        </label>
+        <label className="field" style={{ flex: 1, marginBottom: 0, minWidth: 90 }}>
+          <span className="lbl">ราคา (฿)</span>
+          <input type="number" step="0.01" min="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+        </label>
+        <label className="field" style={{ marginBottom: 0, width: 70 }}>
+          <span className="lbl">ทุก</span>
+          <input type="number" min="1" value={form.interval_count} onChange={(e) => setForm({ ...form, interval_count: e.target.value })} />
+        </label>
+        <label className="field" style={{ marginBottom: 0, width: 110 }}>
+          <span className="lbl">หน่วย</span>
+          <select value={form.interval_unit} onChange={(e) => setForm({ ...form, interval_unit: e.target.value })}>
+            <option value="day">วัน</option>
+            <option value="month">เดือน</option>
+            <option value="year">ปี</option>
+          </select>
+        </label>
+        <button className="btn">เพิ่มแผน</button>
+      </form>
+    </div>
+  );
+}
 
 const couponLabel = (c) => `${c.code} (${c.discount_type === "percent" ? c.value + "%" : baht(c.value)})`;
 
-function NewMember({ plans, coupons, reload, onError, onInvoice }) {
+function NewMember({ mid, plans, coupons, reload, onError, onInvoice }) {
   const [form, setForm] = useState({ plan_id: "", customer_name: "", customer_email: "", customer_phone: "", customer_line_id: "", coupon_code: "" });
   const active = plans.filter((p) => p.active);
 
   async function add(e) {
     e.preventDefault();
     try {
-      const res = await api.createSubscription({
+      const res = await adminApi.mCreateSubscription(mid, {
         plan_id: form.plan_id || active[0]?.id,
         customer_name: form.customer_name,
         customer_email: form.customer_email || null,
@@ -33,12 +108,7 @@ function NewMember({ plans, coupons, reload, onError, onInvoice }) {
     }
   }
 
-  if (active.length === 0)
-    return (
-      <p className="muted">
-        ยังไม่มีแผนที่เปิดใช้งาน — <Link to="/plans">สร้างแผนสมาชิก</Link> ก่อนจึงจะรับสมัครได้
-      </p>
-    );
+  if (active.length === 0) return <p className="muted">สร้างแผนที่เปิดใช้งานก่อน จึงจะรับสมัครสมาชิกได้</p>;
 
   return (
     <form onSubmit={add} style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -78,11 +148,86 @@ function NewMember({ plans, coupons, reload, onError, onInvoice }) {
   );
 }
 
-export default function Members() {
+function Coupons({ mid, coupons, reload, onError }) {
+  const [form, setForm] = useState({ code: "", discount_type: "percent", value: "", duration: "once" });
+
+  async function add(e) {
+    e.preventDefault();
+    try {
+      await adminApi.mCreateCoupon(mid, {
+        code: form.code,
+        discount_type: form.discount_type,
+        value: parseFloat(form.value),
+        duration: form.duration,
+      });
+      setForm({ code: "", discount_type: "percent", value: "", duration: "once" });
+      reload();
+    } catch (e) {
+      onError(e.message);
+    }
+  }
+
+  return (
+    <div className="card">
+      <strong>คูปอง / ส่วนลด</strong>
+      <p className="muted" style={{ fontSize: 13 }}>ใช้ตอนรับสมัครสมาชิก (ครั้งแรก หรือ ทุกบิล)</p>
+      <table style={{ marginTop: 6 }}>
+        <tbody>
+          {coupons.map((c) => (
+            <tr key={c.id}>
+              <td className="mono">{c.code}{!c.active && <span className="badge canceled" style={{ marginLeft: 8 }}>ปิด</span>}</td>
+              <td>{c.discount_type === "percent" ? `${c.value}%` : baht(c.value)}</td>
+              <td className="muted">{c.duration === "forever" ? "ทุกบิล" : "ครั้งแรก"}</td>
+              <td className="muted">ใช้ไป {c.times_redeemed}{c.max_redemptions ? `/${c.max_redemptions}` : ""}</td>
+              <td style={{ textAlign: "right" }}>
+                {c.active && (
+                  <button className="btn danger" style={{ padding: "4px 10px" }}
+                          onClick={() => adminApi.mDeleteCoupon(mid, c.id).then(reload).catch((e) => onError(e.message))}>
+                    ปิด
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+          {coupons.length === 0 && <tr><td className="muted" style={{ padding: 12 }}>ยังไม่มีคูปอง</td></tr>}
+        </tbody>
+      </table>
+      <form onSubmit={add} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: 12, flexWrap: "wrap" }}>
+        <label className="field" style={{ marginBottom: 0, width: 130 }}>
+          <span className="lbl">โค้ด</span>
+          <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="SAVE20" required />
+        </label>
+        <label className="field" style={{ marginBottom: 0, width: 110 }}>
+          <span className="lbl">ประเภท</span>
+          <select value={form.discount_type} onChange={(e) => setForm({ ...form, discount_type: e.target.value })}>
+            <option value="percent">เปอร์เซ็นต์</option>
+            <option value="fixed">บาท</option>
+          </select>
+        </label>
+        <label className="field" style={{ marginBottom: 0, width: 90 }}>
+          <span className="lbl">ค่า</span>
+          <input type="number" step="0.01" min="0.01" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} required />
+        </label>
+        <label className="field" style={{ marginBottom: 0, width: 110 }}>
+          <span className="lbl">ใช้</span>
+          <select value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })}>
+            <option value="once">ครั้งแรก</option>
+            <option value="forever">ทุกบิล</option>
+          </select>
+        </label>
+        <button className="btn">เพิ่มคูปอง</button>
+      </form>
+    </div>
+  );
+}
+
+export default function AdminMerchantMembers() {
+  const { id: mid } = useParams();
+  const [merchant, setMerchant] = useState(null);
   const [plans, setPlans] = useState([]);
-  const [coupons, setCoupons] = useState([]);
   const [subs, setSubs] = useState([]);
   const [stats, setStats] = useState(null);
+  const [coupons, setCoupons] = useState([]);
   const [notifs, setNotifs] = useState([]);
   const [err, setErr] = useState("");
   const [invoice, setInvoice] = useState(null);
@@ -90,23 +235,25 @@ export default function Members() {
 
   async function load() {
     try {
-      const [p, c, s, st, n] = await Promise.all([
-        api.listPlans(), api.listCoupons(), api.listSubscriptions(), api.subscriptionStats(), api.listNotifications(),
+      const [m, p, s, st, c, n] = await Promise.all([
+        adminApi.merchant(mid), adminApi.mPlans(mid), adminApi.mSubscriptions(mid),
+        adminApi.mSubscriptionStats(mid), adminApi.mCoupons(mid), adminApi.mNotifications(mid),
       ]);
+      setMerchant(m);
       setPlans(p);
-      setCoupons(c);
       setSubs(s);
       setStats(st);
+      setCoupons(c);
       setNotifs(n.slice(0, 8));
     } catch (e) {
       setErr(e.message);
     }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [mid]);
 
   async function submitChangePlan() {
     try {
-      const detail = await api.changePlan(changing.sub.id, changing.planId);
+      const detail = await adminApi.mChangePlan(mid, changing.sub.id, changing.planId);
       const proration = (detail.invoices || []).find((c) => (c.metadata || {}).proration && c.status === "pending");
       if (proration) setInvoice(proration);
       setChanging(null);
@@ -118,7 +265,8 @@ export default function Members() {
 
   async function renew(id) {
     try {
-      setInvoice(await api.renewSubscription(id));
+      const inv = await adminApi.mRenewSubscription(mid, id);
+      setInvoice(inv);
       load();
     } catch (e) {
       setErr(e.message);
@@ -127,7 +275,7 @@ export default function Members() {
   async function cancel(id) {
     if (!confirm("ยกเลิกสมาชิกรายนี้?")) return;
     try {
-      await api.cancelSubscription(id);
+      await adminApi.mCancelSubscription(mid, id);
       load();
     } catch (e) {
       setErr(e.message);
@@ -135,7 +283,7 @@ export default function Members() {
   }
   async function generateDue() {
     try {
-      const inv = await api.generateDueInvoices();
+      const inv = await adminApi.mGenerateDue(mid);
       setErr("");
       alert(`สร้างบิลต่ออายุ ${inv.length} รายการ`);
       load();
@@ -146,8 +294,14 @@ export default function Members() {
 
   return (
     <div>
+      <p style={{ marginBottom: 6 }}>
+        <Link to="/merchants">← ร้านค้าทั้งหมด</Link>
+        {merchant && <> · <Link to={`/merchants/${mid}`}>{merchant.business_name}</Link></>}
+      </p>
       <h1 className="page-title">สมาชิก / Subscription</h1>
-      <p className="page-sub">รับสมัครและจัดการสมาชิกแบบจ่ายตามรอบผ่าน PromptPay — จ่ายแล้วต่ออายุอัตโนมัติ</p>
+      <p className="page-sub">
+        {merchant ? `จัดการสมาชิกของร้าน "${merchant.business_name}"` : "กำลังโหลด…"} — แผนสมาชิกแบบจ่ายตามรอบผ่าน PromptPay
+      </p>
       {err && <div className="error">{err}</div>}
 
       {stats && (
@@ -205,12 +359,17 @@ export default function Members() {
         </div>
       )}
 
+      <div className="grid cols-2" style={{ marginBottom: 16 }}>
+        <Plans mid={mid} plans={plans} reload={load} onError={setErr} />
+        <Coupons mid={mid} coupons={coupons} reload={load} onError={setErr} />
+      </div>
+
       <div className="card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <strong>สมาชิก ({subs.length})</strong>
           <button className="btn ghost" onClick={generateDue}>สร้างบิลครบกำหนด</button>
         </div>
-        <NewMember plans={plans} coupons={coupons} reload={load} onError={setErr} onInvoice={setInvoice} />
+        <NewMember mid={mid} plans={plans} coupons={coupons} reload={load} onError={setErr} onInvoice={setInvoice} />
         <table style={{ marginTop: 14 }}>
           <thead>
             <tr><th>ลูกค้า</th><th>แผน</th><th>สถานะ</th><th>ครบกำหนด</th><th>จัดการ</th></tr>

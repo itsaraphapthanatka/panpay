@@ -11,6 +11,7 @@ export default function Checkout() {
   const [charge, setCharge] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showSlip, setShowSlip] = useState(false);
   const fileRef = useRef(null);
 
   // In embed mode, notify the parent page (panpay.js) when payment completes.
@@ -135,17 +136,30 @@ export default function Checkout() {
               <p className="muted" style={{ marginTop: 14 }}>
                 สแกนด้วยแอปธนาคารเพื่อจ่ายผ่าน PromptPay
                 <br />
-                จากนั้นแนบรูปสลิป — ระบบจะอ่าน QR ในสลิปอัตโนมัติ
+                <strong>ไม่ต้องแนบสลิป</strong> — เมื่อโอนแล้วระบบจะยืนยันให้อัตโนมัติ
               </p>
-              <form onSubmit={submitSlip} style={{ marginTop: 8 }}>
-                <input ref={fileRef} type="file" accept="image/*" style={{ marginBottom: 12 }} />
-                <button className="btn block" disabled={busy}>
-                  {busy ? "กำลังอ่าน QR และตรวจสอบสลิป…" : "แนบสลิปเพื่อยืนยันการชำระเงิน"}
-                </button>
-              </form>
-              <p className="muted" style={{ fontSize: 12, marginTop: 14 }}>
-                สถานะ: รอชำระเงิน · ระบบจะอัปเดตอัตโนมัติ
-              </p>
+              <div className="notice" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 8 }}>
+                <span className="pay-spinner" aria-hidden="true" />
+                กำลังรอตรวจสอบการชำระเงินอัตโนมัติ…
+              </div>
+
+              {showSlip ? (
+                <form onSubmit={submitSlip} style={{ marginTop: 16 }}>
+                  <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                    แนบรูปสลิปเพื่อยืนยันด้วยตนเอง (ระบบจะอ่าน QR ในสลิปอัตโนมัติ)
+                  </p>
+                  <input ref={fileRef} type="file" accept="image/*" style={{ marginBottom: 12 }} />
+                  <button className="btn block" disabled={busy}>
+                    {busy ? "กำลังตรวจสอบสลิป…" : "ยืนยันด้วยสลิป"}
+                  </button>
+                </form>
+              ) : (
+                <p style={{ fontSize: 12, marginTop: 16 }}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setShowSlip(true); }} className="muted">
+                    ระบบยังไม่ยืนยัน? แนบสลิปแทน
+                  </a>
+                </p>
+              )}
             </>
           )}
         </div>

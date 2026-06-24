@@ -133,6 +133,23 @@ class SlipSubmitJSON(BaseModel):
     trans_ref: str | None = None
 
 
+# ---- Bank notification ingest (auto-match incoming transfers, no slip) ----
+class BankIncomingRequest(BaseModel):
+    amount: float = Field(gt=0, description="amount credited, as read from the bank notification")
+    ref: str | None = Field(default=None, description="bank transaction ref if available (dedupe)")
+    sender_name: str | None = None
+    transferred_at: datetime | None = None
+    raw: dict = Field(default_factory=dict, description="raw notification text/payload for the record")
+
+
+class BankIncomingResult(BaseModel):
+    matched: bool
+    charge_id: str | None = None
+    amount: float | None = None
+    reason: str | None = None  # why no match, when matched is false
+    candidates: int = 0        # how many pending charges had this amount
+
+
 # ---- Receiving accounts ----
 class ReceivingAccountCreate(BaseModel):
     name: str

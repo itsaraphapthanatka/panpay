@@ -8,7 +8,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import admin, auth, charges, checkout, dashboard, embed, membership, portal
+from .routers import (
+    admin,
+    admin_membership,
+    auth,
+    bank,
+    charges,
+    checkout,
+    dashboard,
+    embed,
+    line,
+    membership,
+    portal,
+)
 
 # Use uvicorn's logger so scheduler messages appear in the server logs.
 logger = logging.getLogger("uvicorn.error")
@@ -100,9 +112,12 @@ def health():
 
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(admin_membership.router)
 app.include_router(dashboard.router)
 app.include_router(charges.router)
 app.include_router(checkout.router)
 app.include_router(embed.router)
 app.include_router(membership.router)
 app.include_router(portal.router)
+app.include_router(line.router)
+app.include_router(bank.router)

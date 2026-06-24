@@ -9,6 +9,8 @@ import ApiKeys from "./pages/ApiKeys.jsx";
 import Settings from "./pages/Settings.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
 import Settlements from "./pages/Settlements.jsx";
+import MemberPlans from "./pages/MemberPlans.jsx";
+import Coupons from "./pages/Coupons.jsx";
 import Members from "./pages/Members.jsx";
 import Portal from "./pages/Portal.jsx";
 import Checkout from "./pages/Checkout.jsx";
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="api-keys" element={<ApiKeys />} />
         <Route path="settlements" element={<Settlements />} />
         <Route path="members" element={<Members />} />
+        <Route path="plans" element={<MemberPlans />} />
+        <Route path="coupons" element={<Coupons />} />
         <Route path="audit" element={<AuditLog />} />
         <Route path="settings" element={<Settings />} />
       </Route>

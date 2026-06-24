@@ -107,6 +107,7 @@ export const adminApi = {
   merchants: (q) => request(`/admin/merchants${q ? `?q=${encodeURIComponent(q)}` : ""}`, { admin: true }),
   merchant: (id) => request(`/admin/merchants/${id}`, { admin: true }),
   updateMerchant: (id, b) => request(`/admin/merchants/${id}`, { method: "PATCH", body: b, admin: true }),
+  actAs: (id) => request(`/admin/merchants/${id}/act-as`, { method: "POST", admin: true }),
   charges: ({ merchantId, status } = {}) => {
     const p = new URLSearchParams();
     if (merchantId) p.set("merchant_id", merchantId);
@@ -123,6 +124,23 @@ export const adminApi = {
     const qs = p.toString();
     return request(`/admin/audit-logs${qs ? `?${qs}` : ""}`, { admin: true });
   },
+
+  // Membership management for a specific merchant (admin acts on the merchant's behalf)
+  mPlans: (mid) => request(`/admin/merchants/${mid}/plans`, { admin: true }),
+  mCreatePlan: (mid, b) => request(`/admin/merchants/${mid}/plans`, { method: "POST", body: b, admin: true }),
+  mUpdatePlan: (mid, id, b) => request(`/admin/merchants/${mid}/plans/${id}`, { method: "PATCH", body: b, admin: true }),
+  mDeletePlan: (mid, id) => request(`/admin/merchants/${mid}/plans/${id}`, { method: "DELETE", admin: true }),
+  mSubscriptions: (mid) => request(`/admin/merchants/${mid}/subscriptions`, { admin: true }),
+  mCreateSubscription: (mid, b) => request(`/admin/merchants/${mid}/subscriptions`, { method: "POST", body: b, admin: true }),
+  mRenewSubscription: (mid, id) => request(`/admin/merchants/${mid}/subscriptions/${id}/invoice`, { method: "POST", admin: true }),
+  mCancelSubscription: (mid, id) => request(`/admin/merchants/${mid}/subscriptions/${id}/cancel`, { method: "POST", admin: true }),
+  mGenerateDue: (mid) => request(`/admin/merchants/${mid}/subscriptions/generate-due`, { method: "POST", admin: true }),
+  mSubscriptionStats: (mid) => request(`/admin/merchants/${mid}/subscription-stats`, { admin: true }),
+  mChangePlan: (mid, id, planId) => request(`/admin/merchants/${mid}/subscriptions/${id}/change-plan`, { method: "POST", body: { plan_id: planId }, admin: true }),
+  mCoupons: (mid) => request(`/admin/merchants/${mid}/coupons`, { admin: true }),
+  mCreateCoupon: (mid, b) => request(`/admin/merchants/${mid}/coupons`, { method: "POST", body: b, admin: true }),
+  mDeleteCoupon: (mid, id) => request(`/admin/merchants/${mid}/coupons/${id}`, { method: "DELETE", admin: true }),
+  mNotifications: (mid) => request(`/admin/merchants/${mid}/notifications`, { admin: true }),
 };
 
 // Download an authenticated file (e.g. CSV) by fetching with the token then

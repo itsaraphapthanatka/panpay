@@ -11,11 +11,15 @@ returns a normalized VerifyResult. Swap providers via SLIP_PROVIDER in .env:
 
 from __future__ import annotations
 
+import json
+import logging
 import secrets
 from dataclasses import dataclass, field
 from datetime import datetime
 
 import httpx
+
+logger = logging.getLogger("uvicorn.error")
 
 from .banks import bank_name
 from .config import settings
@@ -237,10 +241,106 @@ class EasySlipVerifier(SlipVerifier):
         )
 
 
+class Slip2GoVerifier(SlipVerifier):
+    """Real verification via Slip2Go (https://slip2go.com).
+
+    Two endpoints (base URL + Bearer secret come from the account):
+      - image: POST {base}/api/verify-slip/qr-image/info  (multipart: file [+ payload])
+      - qr   : POST {base}/api/verify-slip/qr-code/info    (json: {"payload": {"qrCode": ...}})
+
+    NOTE: the response field mapping below follows the common Thai slip-verify
+    shape ({"data": {...}}). Adjust _map() once the exact Response is confirmed —
+    the full body is always stored in `raw`.
+    """
+
+    name = "slip2go"
+
+    # Codes that mean "genuine slip we may accept". 200000 = slip found in the
+    # bank; 200200 = slip valid and matched the conditions we sent. All other
+    # 2004xx/2005xx codes are rejections even though HTTP is 200.
+    SUCCESS_CODES = {"200000", "200200"}
+
+    def _url(self, path: str) -> str:
+        return f"{settings.slip2go_base_url.rstrip('/')}{path}"
+
+    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref):
+        if not settings.slip2go_secret_key:
+            return VerifyResult(success=False, provider=self.name, error="slip2go_not_configured")
+
+        headers = {"Authorization": f"Bearer {settings.slip2go_secret_key}"}
+        check = {"checkDuplicate": settings.slip2go_check_duplicate}
+        try:
+            if file_bytes:
+                resp = httpx.post(
+                    self._url("/api/verify-slip/qr-image/info"),
+                    headers=headers,
+                    files={"file": ("slip.png", file_bytes, "image/png")},
+                    data={"payload": json.dumps(check)},
+                    timeout=20,
+                )
+            elif qr_payload:
+                resp = httpx.post(
+                    self._url("/api/verify-slip/qr-code/info"),
+                    headers={**headers, "Content-Type": "application/json"},
+                    json={"payload": {"qrCode": qr_payload, **check}},
+                    timeout=20,
+                )
+            else:
+                return VerifyResult(success=False, provider=self.name, error="no_slip_submitted")
+        except httpx.HTTPError as exc:
+            return VerifyResult(success=False, provider=self.name, error=f"http_error: {exc}")
+
+        body = resp.json() if resp.content else {}
+        # Log the raw response so field mapping can be confirmed against real slips.
+        logger.info("slip2go response (http %s): %s", resp.status_code, json.dumps(body, ensure_ascii=False)[:1500])
+
+        # Slip2Go returns HTTP 200 for EVERY case; the real status is in `code`.
+        # Only a genuine, condition-matching slip may be accepted. Everything else
+        # (fraud 200500, duplicate 200501, not-found 200404, mismatch 200401/2/3,
+        # bank error 200502) must be rejected.
+        code = str((body or {}).get("code") or "")
+        data = body.get("data") if isinstance(body, dict) else None
+        if code not in self.SUCCESS_CODES or not data:
+            msg = (body or {}).get("message") or code or f"status_{resp.status_code}"
+            return VerifyResult(success=False, provider=self.name, raw=body,
+                                error=f"{code} {msg}".strip())
+        return self._map(data, body)
+
+    @staticmethod
+    def _map(data: dict, body: dict) -> VerifyResult:
+        # Field names confirmed against Slip2Go's documented response:
+        #   data.transRef, data.amount, data.dateTime,
+        #   data.{sender,receiver}.account.name, data.{sender,receiver}.bank.{id,name}
+        sender = data.get("sender") or {}
+        receiver = data.get("receiver") or {}
+
+        def acct_name(node):
+            return (node.get("account") or {}).get("name")
+
+        def bank_label(node):
+            bank = node.get("bank") or {}
+            return bank.get("name") or bank_name(bank.get("id"))
+
+        return VerifyResult(
+            success=True,
+            # transRef is the bank's transaction reference — unique, used to block re-used slips.
+            trans_ref=data.get("transRef") or data.get("referenceId"),
+            amount=_amount_value(data.get("amount")),
+            sender_name=acct_name(sender),
+            sender_bank=bank_label(sender),
+            receiver_name=acct_name(receiver),
+            receiver_bank=bank_label(receiver),
+            transferred_at=_parse_dt(data.get("dateTime")),
+            provider="slip2go",
+            raw=body,
+        )
+
+
 _PROVIDERS = {
     "dev": DevVerifier,
     "slipok": SlipOKVerifier,
     "easyslip": EasySlipVerifier,
+    "slip2go": Slip2GoVerifier,
 }
 
 

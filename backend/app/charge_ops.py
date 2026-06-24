@@ -56,6 +56,72 @@ def create_charge(db: Session, merchant: Merchant, body) -> Charge:
     return charge
 
 
+def settle_charge_paid(
+    db: Session,
+    background,
+    charge: Charge,
+    *,
+    trans_ref: str,
+    amount: float,
+    sender_name: str | None = None,
+    sender_bank: str | None = None,
+    receiver_name: str | None = None,
+    receiver_bank: str | None = None,
+    transferred_at=None,
+    provider: str = "bank",
+    raw: dict | None = None,
+) -> Charge:
+    """Mark a pending charge as paid: record the Payment, flip status, advance any
+    subscription, and fire merchant webhooks. Shared by slip verification and the
+    bank-notification ingest. Raises 409 if the trans_ref was already used.
+    """
+    # Lazy imports avoid a circular dependency (subscription_ops imports charge_ops).
+    from sqlalchemy.exc import IntegrityError
+
+    from .models import Payment, Subscription
+    from .subscription_ops import advance_on_payment
+    from .webhooks import deliver_webhook, enqueue_charge_event, enqueue_subscription_event
+
+    payment = Payment(
+        charge_id=charge.id,
+        trans_ref=trans_ref,
+        amount=amount,
+        sender_name=sender_name,
+        sender_bank=sender_bank,
+        receiver_name=receiver_name,
+        receiver_bank=receiver_bank,
+        transferred_at=transferred_at,
+        provider=provider,
+        raw=raw or {},
+    )
+    db.add(payment)
+    charge.status = "paid"
+    charge.paid_at = utcnow()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This transaction reference has already been used for another payment.",
+        )
+    db.refresh(charge)
+
+    if charge.subscription_id:
+        sub_event = advance_on_payment(db, charge)
+        if sub_event:
+            sub = db.get(Subscription, charge.subscription_id)
+            sub_delivery = enqueue_subscription_event(db, sub, charge.merchant, sub_event)
+            if sub_delivery:
+                background.add_task(deliver_webhook, sub_delivery.id, charge.merchant.webhook_secret)
+
+    delivery = enqueue_charge_event(db, charge, charge.merchant, "charge.paid")
+    if delivery:
+        background.add_task(deliver_webhook, delivery.id, charge.merchant.webhook_secret)
+
+    return charge
+
+
 def void_charge(db: Session, charge: Charge) -> Charge:
     if charge.status != "pending":
         raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot void a {charge.status} charge")

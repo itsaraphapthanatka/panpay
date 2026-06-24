@@ -5,6 +5,7 @@ import AdminLogin from "./pages/AdminLogin.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminMerchants from "./pages/AdminMerchants.jsx";
 import AdminMerchantDetail from "./pages/AdminMerchantDetail.jsx";
+import AdminMerchantMembers from "./pages/AdminMerchantMembers.jsx";
 import AdminTransactions from "./pages/AdminTransactions.jsx";
 import AdminAuditLog from "./pages/AdminAuditLog.jsx";
 
@@ -31,6 +32,7 @@ export default function AdminApp() {
         <Route index element={<AdminDashboard />} />
         <Route path="merchants" element={<AdminMerchants />} />
         <Route path="merchants/:id" element={<AdminMerchantDetail />} />
+        <Route path="merchants/:id/members" element={<AdminMerchantMembers />} />
         <Route path="transactions" element={<AdminTransactions />} />
         <Route path="audit" element={<AdminAuditLog />} />
       </Route>

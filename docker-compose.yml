@@ -30,8 +30,7 @@ services:
       JWT_SECRET: change-me-in-production-please-0123456789
       CHECKOUT_BASE_URL: https://punpay.petgo.asia
       CORS_ORIGINS: https://punpay.petgo.asia
-      SLIP_PROVIDER: dev
-      DEV_AUTO_VERIFY: "true"
+      # Slip provider + credentials come from backend/.env (SLIP_PROVIDER=slip2go)
       RUN_SCHEDULER: "true"          # in-process daily renewal job (single instance)
       SCHEDULER_INTERVAL_HOURS: "24"
     depends_on:

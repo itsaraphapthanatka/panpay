@@ -21,10 +21,15 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     # Slip verification
-    slip_provider: str = "dev"  # "dev" | "slipok" | "easyslip"
+    slip_provider: str = "dev"  # "dev" | "slipok" | "easyslip" | "slip2go"
     slipok_api_key: str = ""
     slipok_branch_id: str = ""
     easyslip_api_key: str = ""
+    # Slip2Go (https://slip2go.com) — set base URL + API secret from your account.
+    slip2go_base_url: str = "https://connect.slip2go.com"
+    slip2go_secret_key: str = ""
+    # Verify each slip is unique (rejects re-used slips) — sent to Slip2Go.
+    slip2go_check_duplicate: bool = True
     dev_auto_verify: bool = True
 
     # Subscription renewals
@@ -43,6 +48,8 @@ class Settings(BaseSettings):
     sms_api_key: str = ""
     # LINE Messaging API (free push within quota). Channel access token from the LINE console.
     line_channel_access_token: str = ""
+    # Channel secret — used to verify the X-Line-Signature on inbound webhooks.
+    line_channel_secret: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { adminApi } from "../api.js";
+import { adminApi, setToken } from "../api.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
@@ -31,13 +31,35 @@ export default function AdminMerchantDetail() {
     load();
   }, [id]);
 
+  async function manageAsShop() {
+    if (m.suspended) {
+      setErr("ร้านนี้ถูกระงับ — ปลดระงับก่อนจึงจะเข้าจัดการได้");
+      return;
+    }
+    if (!confirm(`เข้าจัดการร้าน "${m.business_name}" ด้วยสิทธิ์เต็ม?\nระบบจะเปิด dashboard ในนามร้านนี้ (ทำได้ทุกอย่างเหมือนร้านค้า)`)) return;
+    try {
+      const res = await adminApi.actAs(id);
+      setToken(res.access_token);
+      localStorage.setItem("panpay_impersonating", res.business_name || m.business_name);
+      window.location.assign("/");
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
   if (err) return <div className="error">{err}</div>;
   if (!m) return <div className="muted">กำลังโหลด…</div>;
 
   return (
     <div>
       <p style={{ marginBottom: 6 }}><Link to="/merchants">← ร้านค้าทั้งหมด</Link></p>
-      <h1 className="page-title">{m.business_name}</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+        <h1 className="page-title" style={{ marginBottom: 0 }}>{m.business_name}</h1>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link className="btn ghost" to={`/merchants/${id}/members`}>👥 จัดการสมาชิก</Link>
+          <button className="btn" onClick={manageAsShop}>🔑 เข้าจัดการร้านนี้ (เต็มสิทธิ์)</button>
+        </div>
+      </div>
       <p className="page-sub">
         {m.email} · PromptPay {m.promptpay_id || "—"} ·{" "}
         {m.suspended ? <span className="badge canceled">ถูกระงับ</span> : <span className="badge paid">ใช้งาน</span>}
