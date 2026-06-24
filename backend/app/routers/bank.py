@@ -25,6 +25,7 @@ from ..deps import get_api_merchant
 from ..models import Charge, Merchant, utcnow
 from ..ratelimit import limit_api
 from ..schemas import BankIncomingRequest, BankIncomingResult
+from ..settings_store import AUTO_BANK_CHECK, get_bool
 
 router = APIRouter(prefix="/bank", tags=["bank ingest"], dependencies=[Depends(limit_api)])
 
@@ -39,6 +40,10 @@ def incoming(
     merchant: Merchant = Depends(get_api_merchant),
     db: Session = Depends(get_db),
 ):
+    if not get_bool(db, AUTO_BANK_CHECK, default=True):
+        return BankIncomingResult(matched=False, reason="auto_check_disabled",
+                                  amount=body.amount, candidates=0)
+
     now = utcnow()
     candidates = (
         db.query(Charge)

@@ -25,6 +25,18 @@ def utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class Setting(Base):
+    """Platform-wide key/value settings, toggled at runtime by an admin."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    value: Mapped[str] = mapped_column(String)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class AdminUser(Base):
     """Platform operator who oversees every merchant on the gateway."""
 

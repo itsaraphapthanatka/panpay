@@ -12,6 +12,47 @@ function Stat({ label, value, accent }) {
   );
 }
 
+function AutoCheckToggle({ onError }) {
+  const [enabled, setEnabled] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    adminApi.getSettings().then((s) => setEnabled(s.auto_bank_check)).catch((e) => onError(e.message));
+  }, []);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      const s = await adminApi.updateSettings({ auto_bank_check: !enabled });
+      setEnabled(s.auto_bank_check);
+    } catch (e) {
+      onError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
+      <div>
+        <strong>ตรวจเงินเข้าอัตโนมัติ (Bank Auto-check)</strong>
+        <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+          รับแจ้งเงินเข้าจากแอปธนาคารผ่าน <span className="mono">/bank/incoming</span> แล้วยืนยันการชำระเงินให้อัตโนมัติ
+          {enabled === false && " — ปิดอยู่: เงินเข้าจะไม่ถูกตรวจอัตโนมัติ (ใช้แนบสลิปแทน)"}
+        </div>
+      </div>
+      <button
+        className={`btn ${enabled ? "danger" : ""}`}
+        disabled={busy || enabled === null}
+        onClick={toggle}
+        style={{ minWidth: 110 }}
+      >
+        {enabled === null ? "…" : enabled ? "ปิดใช้งาน" : "เปิดใช้งาน"}
+      </button>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [err, setErr] = useState("");
@@ -25,6 +66,8 @@ export default function AdminDashboard() {
       <h1 className="page-title">ภาพรวมระบบ</h1>
       <p className="page-sub">สรุปยอดและกิจกรรมของทุกร้านค้าบนแพลตฟอร์ม</p>
       {err && <div className="error">{err}</div>}
+
+      <AutoCheckToggle onError={setErr} />
       {!stats ? (
         <div className="muted">กำลังโหลด…</div>
       ) : (

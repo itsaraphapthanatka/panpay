@@ -396,6 +396,14 @@ class AdminSettlementOut(SettlementOut):
     business_name: str
 
 
+class AdminSettingsOut(BaseModel):
+    auto_bank_check: bool
+
+
+class AdminSettingsUpdate(BaseModel):
+    auto_bank_check: bool
+
+
 class AdminStats(BaseModel):
     merchant_count: int
     suspended_count: int

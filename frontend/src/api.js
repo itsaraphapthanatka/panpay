@@ -104,6 +104,8 @@ export const adminApi = {
   login: (b) => request("/admin/login", { method: "POST", body: b, auth: false }),
   me: () => request("/admin/me", { admin: true }),
   stats: () => request("/admin/stats", { admin: true }),
+  getSettings: () => request("/admin/settings", { admin: true }),
+  updateSettings: (b) => request("/admin/settings", { method: "PATCH", body: b, admin: true }),
   merchants: (q) => request(`/admin/merchants${q ? `?q=${encodeURIComponent(q)}` : ""}`, { admin: true }),
   merchant: (id) => request(`/admin/merchants/${id}`, { admin: true }),
   updateMerchant: (id, b) => request(`/admin/merchants/${id}`, { method: "PATCH", body: b, admin: true }),

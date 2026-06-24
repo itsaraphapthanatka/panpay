@@ -16,6 +16,8 @@ from ..schemas import (
     AdminMerchantOut,
     AdminMerchantUpdate,
     AdminOut,
+    AdminSettingsOut,
+    AdminSettingsUpdate,
     AdminSettlementOut,
     AdminStats,
     AuditLogOut,
@@ -25,6 +27,7 @@ from ..schemas import (
 )
 from ..security import create_access_token, create_admin_token, verify_password
 from ..serializers import charge_to_out
+from ..settings_store import AUTO_BANK_CHECK, get_bool, set_bool
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -44,6 +47,25 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=AdminOut)
 def me(admin: AdminUser = Depends(get_current_admin)):
     return admin
+
+
+# ---- Platform settings ----
+@router.get("/settings", response_model=AdminSettingsOut)
+def get_settings(admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    return AdminSettingsOut(auto_bank_check=get_bool(db, AUTO_BANK_CHECK, default=True))
+
+
+@router.patch("/settings", response_model=AdminSettingsOut)
+def update_settings(
+    body: AdminSettingsUpdate,
+    request: Request,
+    admin: AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    set_bool(db, AUTO_BANK_CHECK, body.auto_bank_check)
+    audit.record(db, action="admin.settings.update", actor=admin.email, request=request,
+                 extra={"auto_bank_check": body.auto_bank_check})
+    return AdminSettingsOut(auto_bank_check=get_bool(db, AUTO_BANK_CHECK, default=True))
 
 
 # ---- Per-merchant charge rollups (shared by stats + merchant list) ----
