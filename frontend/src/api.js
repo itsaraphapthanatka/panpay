@@ -93,6 +93,13 @@ export const api = {
   createCharge: (b) => request("/dashboard/charges", { method: "POST", body: b }),
   voidCharge: (id) => request(`/dashboard/charges/${id}/void`, { method: "POST" }),
   refundCharge: (id, reason) => request(`/dashboard/charges/${id}/refund`, { method: "POST", body: { reason } }),
+  // top-up / wallet
+  balance: () => request("/dashboard/balance"),
+  listTopups: () => request("/dashboard/topups"),
+  createTopup: (amount) => request("/dashboard/topups", { method: "POST", body: { amount } }),
+  getTopup: (id) => request(`/dashboard/topups/${id}`),
+  topupSlip: (id, formData) => request(`/dashboard/topups/${id}/slip`, { method: "POST", form: formData }),
+  cancelTopup: (id) => request(`/dashboard/topups/${id}/cancel`, { method: "POST" }),
   // public checkout
   checkout: (id) => request(`/checkout/${id}`, { auth: false }),
   submitSlip: (id, formData) =>
@@ -106,6 +113,7 @@ export const adminApi = {
   stats: () => request("/admin/stats", { admin: true }),
   getSettings: () => request("/admin/settings", { admin: true }),
   updateSettings: (b) => request("/admin/settings", { method: "PATCH", body: b, admin: true }),
+  // (topup ingest config + credit rate live in admin settings above)
   merchants: (q) => request(`/admin/merchants${q ? `?q=${encodeURIComponent(q)}` : ""}`, { admin: true }),
   merchant: (id) => request(`/admin/merchants/${id}`, { admin: true }),
   updateMerchant: (id, b) => request(`/admin/merchants/${id}`, { method: "PATCH", body: b, admin: true }),

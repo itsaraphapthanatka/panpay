@@ -38,6 +38,9 @@ def resolve_promptpay(db: Session, merchant: Merchant, account_id: str | None) -
 
 
 def create_charge(db: Session, merchant: Merchant, body) -> Charge:
+    from .billing import ensure_credit
+
+    ensure_credit(db, merchant)  # block when out of prepaid credit
     promptpay_id, account_id = resolve_promptpay(db, merchant, body.account_id)
     expires_at = utcnow() + timedelta(seconds=body.expires_in) if body.expires_in else None
     charge = Charge(
@@ -78,6 +81,7 @@ def settle_charge_paid(
     # Lazy imports avoid a circular dependency (subscription_ops imports charge_ops).
     from sqlalchemy.exc import IntegrityError
 
+    from .billing import charge_usage
     from .models import Payment, Subscription
     from .subscription_ops import advance_on_payment
     from .webhooks import deliver_webhook, enqueue_charge_event, enqueue_subscription_event
@@ -97,6 +101,8 @@ def settle_charge_paid(
     db.add(payment)
     charge.status = "paid"
     charge.paid_at = utcnow()
+    # Deduct the per-transaction credit atomically with settling the payment.
+    charge_usage(db, db.get(Merchant, charge.merchant_id), charge)
     try:
         db.commit()
     except IntegrityError:

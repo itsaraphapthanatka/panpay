@@ -27,7 +27,19 @@ from ..schemas import (
 )
 from ..security import create_access_token, create_admin_token, verify_password
 from ..serializers import charge_to_out
-from ..settings_store import AUTO_BANK_CHECK, get_bool, set_bool
+from ..settings_store import (
+    AUTO_BANK_CHECK,
+    CREDIT_PER_TRANSACTION,
+    DEFAULT_CREDIT_PER_TRANSACTION,
+    PLATFORM_PROMPTPAY,
+    TOPUP_INGEST_KEY,
+    ensure_ingest_key,
+    get_bool,
+    get_str,
+    set_bool,
+    set_str,
+)
+import secrets
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -50,9 +62,18 @@ def me(admin: AdminUser = Depends(get_current_admin)):
 
 
 # ---- Platform settings ----
+def _settings_out(db: Session) -> AdminSettingsOut:
+    return AdminSettingsOut(
+        auto_bank_check=get_bool(db, AUTO_BANK_CHECK, default=True),
+        platform_promptpay=get_str(db, PLATFORM_PROMPTPAY),
+        topup_ingest_key=ensure_ingest_key(db),
+        credit_per_transaction=float(get_str(db, CREDIT_PER_TRANSACTION, DEFAULT_CREDIT_PER_TRANSACTION)),
+    )
+
+
 @router.get("/settings", response_model=AdminSettingsOut)
 def get_settings(admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
-    return AdminSettingsOut(auto_bank_check=get_bool(db, AUTO_BANK_CHECK, default=True))
+    return _settings_out(db)
 
 
 @router.patch("/settings", response_model=AdminSettingsOut)
@@ -62,10 +83,22 @@ def update_settings(
     admin: AdminUser = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    set_bool(db, AUTO_BANK_CHECK, body.auto_bank_check)
-    audit.record(db, action="admin.settings.update", actor=admin.email, request=request,
-                 extra={"auto_bank_check": body.auto_bank_check})
-    return AdminSettingsOut(auto_bank_check=get_bool(db, AUTO_BANK_CHECK, default=True))
+    changes: dict = {}
+    if body.auto_bank_check is not None:
+        set_bool(db, AUTO_BANK_CHECK, body.auto_bank_check)
+        changes["auto_bank_check"] = body.auto_bank_check
+    if body.platform_promptpay is not None:
+        set_str(db, PLATFORM_PROMPTPAY, body.platform_promptpay.strip())
+        changes["platform_promptpay"] = body.platform_promptpay.strip()
+    if body.credit_per_transaction is not None:
+        set_str(db, CREDIT_PER_TRANSACTION, f"{body.credit_per_transaction:.2f}")
+        changes["credit_per_transaction"] = body.credit_per_transaction
+    if body.regenerate_ingest_key:
+        set_str(db, TOPUP_INGEST_KEY, "tik_" + secrets.token_hex(20))
+        changes["regenerate_ingest_key"] = True
+    if changes:
+        audit.record(db, action="admin.settings.update", actor=admin.email, request=request, extra=changes)
+    return _settings_out(db)
 
 
 # ---- Per-merchant charge rollups (shared by stats + merchant list) ----
@@ -195,6 +228,12 @@ def update_merchant(
     if body.suspended is not None and merchant.suspended != body.suspended:
         merchant.suspended = body.suspended
         changes["suspended"] = body.suspended
+    if body.clear_credit_override:
+        merchant.credit_per_transaction = None
+        changes["credit_per_transaction"] = None
+    elif body.credit_per_transaction is not None:
+        merchant.credit_per_transaction = body.credit_per_transaction
+        changes["credit_per_transaction"] = body.credit_per_transaction
 
     db.commit()
     db.refresh(merchant)
@@ -241,6 +280,11 @@ def _merchant_out(merchant: Merchant, roll: dict) -> AdminMerchantOut:
         suspended=merchant.suspended,
         fee_percent=float(merchant.fee_percent),
         fee_fixed=float(merchant.fee_fixed),
+        balance=float(merchant.balance or 0),
+        credit_per_transaction=(
+            float(merchant.credit_per_transaction)
+            if merchant.credit_per_transaction is not None else None
+        ),
         created_at=merchant.created_at,
         charge_count=roll.get("charge_count", 0),
         paid_count=roll.get("paid_count", 0),

@@ -12,6 +12,7 @@ import Settlements from "./pages/Settlements.jsx";
 import MemberPlans from "./pages/MemberPlans.jsx";
 import Coupons from "./pages/Coupons.jsx";
 import Members from "./pages/Members.jsx";
+import Topup from "./pages/Topup.jsx";
 import Portal from "./pages/Portal.jsx";
 import Checkout from "./pages/Checkout.jsx";
 
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="members" element={<Members />} />
         <Route path="plans" element={<MemberPlans />} />
         <Route path="coupons" element={<Coupons />} />
+        <Route path="topup" element={<Topup />} />
         <Route path="audit" element={<AuditLog />} />
         <Route path="settings" element={<Settings />} />
       </Route>

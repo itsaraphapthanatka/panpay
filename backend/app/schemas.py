@@ -133,6 +133,57 @@ class SlipSubmitJSON(BaseModel):
     trans_ref: str | None = None
 
 
+# ---- Top-up / merchant wallet ----
+class TopupCreate(BaseModel):
+    amount: float = Field(gt=0, description="amount of credit to add")
+
+
+class TopupOut(BaseModel):
+    id: str
+    amount: float
+    pay_amount: float          # exact amount to transfer (unique satang)
+    status: str
+    method: str | None = None
+    qr_image: str = ""         # data URI
+    qr_payload: str = ""
+    sender_name: str | None = None
+    expires_at: datetime | None = None
+    completed_at: datetime | None = None
+    created_at: datetime
+
+
+class WalletEntryOut(BaseModel):
+    id: str
+    amount: float
+    type: str
+    balance_after: float
+    description: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class BalanceOut(BaseModel):
+    balance: float
+    credit_per_transaction: float   # effective rate for this merchant
+    entries: list[WalletEntryOut]
+
+
+class TopupIncomingRequest(BaseModel):
+    amount: float = Field(gt=0)
+    ref: str | None = None
+    sender_name: str | None = None
+
+
+class TopupIncomingResult(BaseModel):
+    matched: bool
+    topup_id: str | None = None
+    merchant_id: str | None = None
+    amount: float | None = None
+    reason: str | None = None
+
+
 # ---- Bank notification ingest (auto-match incoming transfers, no slip) ----
 class BankIncomingRequest(BaseModel):
     amount: float = Field(gt=0, description="amount credited, as read from the bank notification")
@@ -373,6 +424,8 @@ class AdminMerchantOut(BaseModel):
     suspended: bool
     fee_percent: float
     fee_fixed: float
+    balance: float = 0
+    credit_per_transaction: float | None = None  # null = uses global rate
     created_at: datetime
     charge_count: int = 0
     paid_count: int = 0
@@ -384,6 +437,9 @@ class AdminMerchantUpdate(BaseModel):
     fee_percent: float | None = Field(default=None, ge=0, le=100)
     fee_fixed: float | None = Field(default=None, ge=0)
     suspended: bool | None = None
+    # Per-merchant credit rate override. Send null to clear (use global rate).
+    credit_per_transaction: float | None = Field(default=None, ge=0)
+    clear_credit_override: bool = False  # set true to reset to the global rate
 
 
 class AdminChargeOut(ChargeOut):
@@ -398,10 +454,16 @@ class AdminSettlementOut(SettlementOut):
 
 class AdminSettingsOut(BaseModel):
     auto_bank_check: bool
+    platform_promptpay: str
+    topup_ingest_key: str
+    credit_per_transaction: float
 
 
 class AdminSettingsUpdate(BaseModel):
-    auto_bank_check: bool
+    auto_bank_check: bool | None = None
+    platform_promptpay: str | None = None
+    credit_per_transaction: float | None = Field(default=None, ge=0)
+    regenerate_ingest_key: bool = False
 
 
 class AdminStats(BaseModel):

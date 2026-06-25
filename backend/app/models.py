@@ -59,6 +59,10 @@ class Merchant(Base):
     business_name: Mapped[str] = mapped_column(String)
     # Suspended merchants are blocked from authenticating (dashboard + API).
     suspended: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Prepaid platform credit (topped up via PromptPay, auto-captured).
+    balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0, server_default="0")
+    # Per-merchant credit charged per processed transaction. NULL = use the global rate.
+    credit_per_transaction: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
     # PromptPay proxy that receives the money (phone / national id / e-wallet id)
     promptpay_id: Mapped[str | None] = mapped_column(String, nullable=True)
     webhook_url: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -276,6 +280,45 @@ class Settlement(Base):
     reference: Mapped[str | None] = mapped_column(String, nullable=True)  # payout reference
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
     paid_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Topup(Base):
+    """A merchant top-up of prepaid platform credit via PromptPay.
+
+    pay_amount carries a unique satang suffix so an incoming bank transfer can be
+    matched to exactly one pending top-up (paynoi-style). Also completable by slip.
+    """
+
+    __tablename__ = "topups"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: "top_" + _uuid())
+    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2))  # requested base amount
+    pay_amount: Mapped[float] = mapped_column(Numeric(12, 2), index=True)  # unique amount to transfer
+    # pending | completed | expired | canceled
+    status: Mapped[str] = mapped_column(String, default="pending", index=True)
+    method: Mapped[str | None] = mapped_column(String, nullable=True)  # bank_auto | slip
+    trans_ref: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
+    promptpay_payload: Mapped[str] = mapped_column(Text)
+    sender_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class WalletEntry(Base):
+    """Append-only ledger of merchant balance changes."""
+
+    __tablename__ = "wallet_entries"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: "wal_" + _uuid())
+    merchant_id: Mapped[str] = mapped_column(ForeignKey("merchants.id"), index=True)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2))  # signed: + credit, - debit
+    type: Mapped[str] = mapped_column(String)  # topup | adjust
+    balance_after: Mapped[float] = mapped_column(Numeric(14, 2))
+    topup_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    description: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 
 
 class AuditLog(Base):

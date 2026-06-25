@@ -53,6 +53,28 @@ export default function AdminMerchants() {
     }
   }
 
+  async function editCredit(m) {
+    const cur = m.credit_per_transaction == null ? "" : m.credit_per_transaction;
+    const v = prompt(
+      `ค่าบริการต่อรายการเฉพาะร้าน "${m.business_name}" (บาท)\nเว้นว่าง = ใช้ค่ากลางของระบบ`,
+      cur
+    );
+    if (v === null) return;
+    setBusyId(m.id);
+    try {
+      const trimmed = String(v).trim();
+      await adminApi.updateMerchant(
+        m.id,
+        trimmed === "" ? { clear_credit_override: true } : { credit_per_transaction: Number(trimmed) }
+      );
+      load();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div>
       <h1 className="page-title">ร้านค้า</h1>
@@ -74,6 +96,7 @@ export default function AdminMerchants() {
             <tr>
               <th>ร้านค้า</th>
               <th>ค่าธรรมเนียม</th>
+              <th>เครดิต</th>
               <th>รายการ</th>
               <th>ยอดชำระ</th>
               <th>สถานะ</th>
@@ -90,6 +113,13 @@ export default function AdminMerchants() {
                   <span className="muted" style={{ fontSize: 12 }}>{m.email}</span>
                 </td>
                 <td>{m.fee_percent}% + {baht(m.fee_fixed)}</td>
+                <td>
+                  {baht(m.balance)}
+                  <br />
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {m.credit_per_transaction == null ? "rate กลาง" : `${baht(m.credit_per_transaction)}/รายการ`}
+                  </span>
+                </td>
                 <td>{m.charge_count} <span className="muted">({m.pending_count} รอ)</span></td>
                 <td>{baht(m.paid_amount)} <span className="muted">({m.paid_count})</span></td>
                 <td>
@@ -105,6 +135,9 @@ export default function AdminMerchants() {
                     <button className="btn ghost" style={{ padding: "4px 10px" }} disabled={busyId === m.id} onClick={() => editFee(m)}>
                       ค่าธรรมเนียม
                     </button>
+                    <button className="btn ghost" style={{ padding: "4px 10px" }} disabled={busyId === m.id} onClick={() => editCredit(m)}>
+                      เครดิต/รายการ
+                    </button>
                     <button
                       className={`btn ${m.suspended ? "" : "danger"}`}
                       style={{ padding: "4px 10px" }}
@@ -119,7 +152,7 @@ export default function AdminMerchants() {
             ))}
             {merchants.length === 0 && (
               <tr>
-                <td colSpan={7} className="muted" style={{ textAlign: "center", padding: 28 }}>
+                <td colSpan={8} className="muted" style={{ textAlign: "center", padding: 28 }}>
                   ไม่มีร้านค้า
                 </td>
               </tr>

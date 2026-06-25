@@ -9,6 +9,7 @@ const links = [
   { to: "/plans", label: "แผนสมาชิก", icon: "🗂️" },
   { to: "/coupons", label: "คูปอง", icon: "🎟️" },
   { to: "/settlements", label: "Settlement", icon: "🏦" },
+  { to: "/topup", label: "เติมเงิน / เครดิต", icon: "💰" },
   { to: "/api-keys", label: "API Keys", icon: "🔑" },
   { to: "/audit", label: "บันทึกกิจกรรม", icon: "📜" },
   { to: "/settings", label: "ตั้งค่า", icon: "⚙️" },

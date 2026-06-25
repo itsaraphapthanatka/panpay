@@ -20,6 +20,7 @@ from .routers import (
     line,
     membership,
     portal,
+    topup,
 )
 
 # Use uvicorn's logger so scheduler messages appear in the server logs.
@@ -121,3 +122,4 @@ app.include_router(membership.router)
 app.include_router(portal.router)
 app.include_router(line.router)
 app.include_router(bank.router)
+app.include_router(topup.router)
