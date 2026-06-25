@@ -21,15 +21,20 @@ from .models import Charge
 
 _FONTS_DIR = Path(__file__).resolve().parent / "assets" / "fonts"
 
-# (path, subfontIndex) candidates, best first.
+# (path, subfontIndex) candidates, best first. The bundled Sarabun is preferred;
+# the tlwg fonts (fonts-thai-tlwg, installed in the Dockerfile) are the guaranteed
+# in-image fallback — that package ships Loma/Garuda/Norasi/Waree (NOT Sarabun).
 _CANDIDATES: list[tuple[str, int]] = [
     (str(_FONTS_DIR / "Sarabun-Regular.ttf"), 0),
     (str(_FONTS_DIR / "NotoSansThai-Regular.ttf"), 0),
+    ("/usr/share/fonts/truetype/tlwg/Loma.ttf", 0),
+    ("/usr/share/fonts/truetype/tlwg/Garuda.ttf", 0),
+    ("/usr/share/fonts/truetype/tlwg/Norasi.ttf", 0),
+    ("/usr/share/fonts/truetype/tlwg/Waree.ttf", 0),
+    ("/usr/share/fonts/truetype/noto/NotoSansThai-Regular.ttf", 0),
     ("/Library/Fonts/Arial Unicode.ttf", 0),
     ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 0),
     ("/System/Library/Fonts/Supplemental/Ayuthaya.ttf", 0),
-    ("/usr/share/fonts/truetype/noto/NotoSansThai-Regular.ttf", 0),
-    ("/usr/share/fonts/truetype/tlwg/Sarabun.ttf", 0),
 ]
 
 _FONT = "Helvetica"  # fallback
