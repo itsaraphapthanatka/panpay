@@ -62,6 +62,13 @@ def incoming(
                      request=request, extra={"amount": body.amount, "ref": body.ref})
         return BankIncomingResult(matched=False, reason="no_pending_charge_for_amount",
                                   amount=body.amount, candidates=0)
+    if len(candidates) > 1:
+        # Ambiguous: multiple pending charges share this amount. Don't auto-settle
+        # (could credit the wrong one) — fall back to slip/manual confirmation.
+        audit.record(db, action="bank.incoming.ambiguous", actor="bank", merchant_id=merchant.id,
+                     request=request, extra={"amount": body.amount, "candidates": len(candidates)})
+        return BankIncomingResult(matched=False, reason="ambiguous_amount",
+                                  amount=body.amount, candidates=len(candidates))
 
     charge = candidates[0]
     trans_ref = body.ref or ("BANK" + secrets.token_hex(10).upper())

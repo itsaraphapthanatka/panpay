@@ -32,7 +32,10 @@ from ..settings_store import (
     CREDIT_PER_TRANSACTION,
     DEFAULT_CREDIT_PER_TRANSACTION,
     PLATFORM_PROMPTPAY,
+    PLATFORM_RECEIVER_ACCOUNT,
+    PLATFORM_RECEIVER_NAME,
     TOPUP_INGEST_KEY,
+    TOPUP_UNIQUE_SATANG,
     ensure_ingest_key,
     get_bool,
     get_str,
@@ -66,8 +69,11 @@ def _settings_out(db: Session) -> AdminSettingsOut:
     return AdminSettingsOut(
         auto_bank_check=get_bool(db, AUTO_BANK_CHECK, default=True),
         platform_promptpay=get_str(db, PLATFORM_PROMPTPAY),
+        platform_receiver_name=get_str(db, PLATFORM_RECEIVER_NAME),
+        platform_receiver_account=get_str(db, PLATFORM_RECEIVER_ACCOUNT),
         topup_ingest_key=ensure_ingest_key(db),
         credit_per_transaction=float(get_str(db, CREDIT_PER_TRANSACTION, DEFAULT_CREDIT_PER_TRANSACTION)),
+        topup_unique_satang=get_bool(db, TOPUP_UNIQUE_SATANG, default=False),
     )
 
 
@@ -90,9 +96,18 @@ def update_settings(
     if body.platform_promptpay is not None:
         set_str(db, PLATFORM_PROMPTPAY, body.platform_promptpay.strip())
         changes["platform_promptpay"] = body.platform_promptpay.strip()
+    if body.platform_receiver_name is not None:
+        set_str(db, PLATFORM_RECEIVER_NAME, body.platform_receiver_name.strip())
+        changes["platform_receiver_name"] = body.platform_receiver_name.strip()
+    if body.platform_receiver_account is not None:
+        set_str(db, PLATFORM_RECEIVER_ACCOUNT, body.platform_receiver_account.strip())
+        changes["platform_receiver_account"] = body.platform_receiver_account.strip()
     if body.credit_per_transaction is not None:
         set_str(db, CREDIT_PER_TRANSACTION, f"{body.credit_per_transaction:.2f}")
         changes["credit_per_transaction"] = body.credit_per_transaction
+    if body.topup_unique_satang is not None:
+        set_bool(db, TOPUP_UNIQUE_SATANG, body.topup_unique_satang)
+        changes["topup_unique_satang"] = body.topup_unique_satang
     if body.regenerate_ingest_key:
         set_str(db, TOPUP_INGEST_KEY, "tik_" + secrets.token_hex(20))
         changes["regenerate_ingest_key"] = True

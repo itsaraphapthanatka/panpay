@@ -5,11 +5,111 @@ import { adminApi } from "../api.js";
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmt = (d) => (d ? new Date(d).toLocaleDateString("th-TH") : "—");
 
+function EditModal({ merchant, onClose, onSaved, onError }) {
+  const [feePercent, setFeePercent] = useState(String(merchant.fee_percent ?? 0));
+  const [feeFixed, setFeeFixed] = useState(String(merchant.fee_fixed ?? 0));
+  const [credit, setCredit] = useState(
+    merchant.credit_per_transaction == null ? "" : String(merchant.credit_per_transaction)
+  );
+  const [busy, setBusy] = useState(false);
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const body = {
+        fee_percent: Number(feePercent),
+        fee_fixed: Number(feeFixed),
+      };
+      if (String(credit).trim() === "") {
+        body.clear_credit_override = true;  // empty = use the global rate
+      } else {
+        body.credit_per_transaction = Number(credit);
+      }
+      await adminApi.updateMerchant(merchant.id, body);
+      onSaved();
+    } catch (e) {
+      onError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <form className="modal-card" onSubmit={save}>
+        <div className="modal-head">
+          <h3>จัดการร้านค้า</h3>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="close">✕</button>
+        </div>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+          {merchant.business_name} · {merchant.email}
+        </p>
+
+        <strong style={{ fontSize: 14, display: "block", marginBottom: 8 }}>ค่าธรรมเนียม</strong>
+        <div style={{ display: "flex", gap: 10 }}>
+          <label className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <span className="lbl">เปอร์เซ็นต์ (%)</span>
+            <input type="number" step="0.01" min="0" max="100" value={feePercent} onChange={(e) => setFeePercent(e.target.value)} />
+          </label>
+          <label className="field" style={{ flex: 1, marginBottom: 0 }}>
+            <span className="lbl">คงที่/รายการ (฿)</span>
+            <input type="number" step="0.01" min="0" value={feeFixed} onChange={(e) => setFeeFixed(e.target.value)} />
+          </label>
+        </div>
+
+        <strong style={{ fontSize: 14, display: "block", marginTop: 18, marginBottom: 8 }}>เครดิต/รายการ</strong>
+        <label className="field" style={{ marginBottom: 0 }}>
+          <span className="lbl">ค่าบริการเฉพาะร้านนี้ (บาท/รายการ)</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={credit}
+            onChange={(e) => setCredit(e.target.value)}
+            placeholder="เว้นว่าง = ใช้ค่ากลางของระบบ"
+          />
+        </label>
+        <span className="muted" style={{ fontSize: 12, marginTop: 6, display: "block" }}>
+          เว้นว่างไว้เพื่อใช้ค่ากลางของระบบ
+        </span>
+
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>ยกเลิก</button>
+          <button className="btn" disabled={busy}>{busy ? "กำลังบันทึก…" : "บันทึก"}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ConfirmModal({ title, message, confirmLabel, danger, busy, onConfirm, onClose }) {
+  return (
+    <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-card" style={{ maxWidth: 400 }}>
+        <div className="modal-head">
+          <h3>{title}</h3>
+          <button type="button" className="modal-close" onClick={onClose} aria-label="close">✕</button>
+        </div>
+        <p style={{ marginTop: 0, color: "var(--text)" }}>{message}</p>
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onClose} disabled={busy}>ยกเลิก</button>
+          <button type="button" className={`btn ${danger ? "danger" : ""}`} onClick={onConfirm} disabled={busy}>
+            {busy ? "กำลังดำเนินการ…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminMerchants() {
   const [merchants, setMerchants] = useState([]);
   const [q, setQ] = useState("");
   const [err, setErr] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [confirming, setConfirming] = useState(null);
 
   async function load() {
     try {
@@ -23,50 +123,12 @@ export default function AdminMerchants() {
     return () => clearTimeout(t);
   }, [q]);
 
-  async function toggleSuspend(m) {
-    const verb = m.suspended ? "ปลดระงับ" : "ระงับ";
-    if (!confirm(`${verb}ร้าน "${m.business_name}"?`)) return;
+  async function doToggleSuspend() {
+    const m = confirming;
     setBusyId(m.id);
     try {
       await adminApi.updateMerchant(m.id, { suspended: !m.suspended });
-      load();
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function editFee(m) {
-    const fp = prompt(`ค่าธรรมเนียม % สำหรับ "${m.business_name}"`, m.fee_percent);
-    if (fp === null) return;
-    const ff = prompt(`ค่าธรรมเนียมคงที่ (บาท) สำหรับ "${m.business_name}"`, m.fee_fixed);
-    if (ff === null) return;
-    setBusyId(m.id);
-    try {
-      await adminApi.updateMerchant(m.id, { fee_percent: Number(fp), fee_fixed: Number(ff) });
-      load();
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function editCredit(m) {
-    const cur = m.credit_per_transaction == null ? "" : m.credit_per_transaction;
-    const v = prompt(
-      `ค่าบริการต่อรายการเฉพาะร้าน "${m.business_name}" (บาท)\nเว้นว่าง = ใช้ค่ากลางของระบบ`,
-      cur
-    );
-    if (v === null) return;
-    setBusyId(m.id);
-    try {
-      const trimmed = String(v).trim();
-      await adminApi.updateMerchant(
-        m.id,
-        trimmed === "" ? { clear_credit_override: true } : { credit_per_transaction: Number(trimmed) }
-      );
+      setConfirming(null);
       load();
     } catch (e) {
       setErr(e.message);
@@ -78,7 +140,7 @@ export default function AdminMerchants() {
   return (
     <div>
       <h1 className="page-title">ร้านค้า</h1>
-      <p className="page-sub">ดูทุกร้านค้า ปรับค่าธรรมเนียม และระงับ/ปลดระงับบัญชี</p>
+      <p className="page-sub">ดูทุกร้านค้า ปรับค่าธรรมเนียม/เครดิต และระงับ/ปลดระงับบัญชี</p>
       {err && <div className="error">{err}</div>}
 
       <div style={{ marginBottom: 14 }}>
@@ -132,17 +194,14 @@ export default function AdminMerchants() {
                 <td className="muted">{fmt(m.created_at)}</td>
                 <td>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button className="btn ghost" style={{ padding: "4px 10px" }} disabled={busyId === m.id} onClick={() => editFee(m)}>
-                      ค่าธรรมเนียม
-                    </button>
-                    <button className="btn ghost" style={{ padding: "4px 10px" }} disabled={busyId === m.id} onClick={() => editCredit(m)}>
-                      เครดิต/รายการ
+                    <button className="btn ghost" style={{ padding: "4px 10px" }} onClick={() => setEditing(m)}>
+                      จัดการ
                     </button>
                     <button
                       className={`btn ${m.suspended ? "" : "danger"}`}
                       style={{ padding: "4px 10px" }}
                       disabled={busyId === m.id}
-                      onClick={() => toggleSuspend(m)}
+                      onClick={() => setConfirming(m)}
                     >
                       {m.suspended ? "ปลดระงับ" : "ระงับ"}
                     </button>
@@ -160,6 +219,31 @@ export default function AdminMerchants() {
           </tbody>
         </table>
       </div>
+
+      {editing && (
+        <EditModal
+          merchant={editing}
+          onClose={() => setEditing(null)}
+          onError={setErr}
+          onSaved={() => { setEditing(null); load(); }}
+        />
+      )}
+
+      {confirming && (
+        <ConfirmModal
+          title={confirming.suspended ? "ปลดระงับร้านค้า" : "ระงับร้านค้า"}
+          message={
+            confirming.suspended
+              ? `ปลดระงับร้าน "${confirming.business_name}"? ร้านจะกลับมาเข้าระบบและรับชำระเงินได้ตามปกติ`
+              : `ระงับร้าน "${confirming.business_name}"? ร้านจะเข้าระบบ/รับชำระเงินไม่ได้จนกว่าจะปลดระงับ`
+          }
+          confirmLabel={confirming.suspended ? "ปลดระงับ" : "ระงับ"}
+          danger={!confirming.suspended}
+          busy={busyId === confirming.id}
+          onConfirm={doToggleSuspend}
+          onClose={() => setConfirming(null)}
+        />
+      )}
     </div>
   );
 }

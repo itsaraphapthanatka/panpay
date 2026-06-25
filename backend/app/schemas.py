@@ -30,6 +30,7 @@ class MerchantOut(BaseModel):
     webhook_secret: str
     fee_percent: float
     fee_fixed: float
+    bank_account: str | None = None
     created_at: datetime
 
     class Config:
@@ -40,6 +41,7 @@ class MerchantSettingsUpdate(BaseModel):
     business_name: str | None = None
     promptpay_id: str | None = None
     webhook_url: str | None = None
+    bank_account: str | None = None
     fee_percent: float | None = Field(default=None, ge=0, le=100)
     fee_fixed: float | None = Field(default=None, ge=0)
 
@@ -174,6 +176,7 @@ class TopupIncomingRequest(BaseModel):
     amount: float = Field(gt=0)
     ref: str | None = None
     sender_name: str | None = None
+    sender_account: str | None = None  # disambiguates same-amount top-ups by payer account
 
 
 class TopupIncomingResult(BaseModel):
@@ -455,14 +458,20 @@ class AdminSettlementOut(SettlementOut):
 class AdminSettingsOut(BaseModel):
     auto_bank_check: bool
     platform_promptpay: str
+    platform_receiver_name: str
+    platform_receiver_account: str
     topup_ingest_key: str
     credit_per_transaction: float
+    topup_unique_satang: bool
 
 
 class AdminSettingsUpdate(BaseModel):
     auto_bank_check: bool | None = None
     platform_promptpay: str | None = None
+    platform_receiver_name: str | None = None
+    platform_receiver_account: str | None = None
     credit_per_transaction: float | None = Field(default=None, ge=0)
+    topup_unique_satang: bool | None = None
     regenerate_ingest_key: bool = False
 
 

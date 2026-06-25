@@ -63,6 +63,9 @@ class Merchant(Base):
     balance: Mapped[float] = mapped_column(Numeric(14, 2), default=0, server_default="0")
     # Per-merchant credit charged per processed transaction. NULL = use the global rate.
     credit_per_transaction: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
+    # Bank account the merchant tops up FROM — used to disambiguate auto top-up
+    # matching when several pending top-ups share the same amount.
+    bank_account: Mapped[str | None] = mapped_column(String, nullable=True)
     # PromptPay proxy that receives the money (phone / national id / e-wallet id)
     promptpay_id: Mapped[str | None] = mapped_column(String, nullable=True)
     webhook_url: Mapped[str | None] = mapped_column(String, nullable=True)

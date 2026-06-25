@@ -77,7 +77,7 @@ function ReceivingAccounts({ onError }) {
 
 export default function Settings() {
   const { merchant, refresh } = useAuth();
-  const [form, setForm] = useState({ business_name: "", promptpay_id: "", webhook_url: "" });
+  const [form, setForm] = useState({ business_name: "", promptpay_id: "", webhook_url: "", bank_account: "" });
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -88,6 +88,7 @@ export default function Settings() {
         business_name: merchant.business_name || "",
         promptpay_id: merchant.promptpay_id || "",
         webhook_url: merchant.webhook_url || "",
+        bank_account: merchant.bank_account || "",
       });
   }, [merchant]);
 
@@ -130,6 +131,10 @@ export default function Settings() {
           <label className="field">
             <span className="lbl">Webhook URL (รับแจ้งเตือนเมื่อชำระ/คืนเงิน)</span>
             <input value={form.webhook_url} onChange={set("webhook_url")} placeholder="https://your-shop.com/webhook" />
+          </label>
+          <label className="field">
+            <span className="lbl">เลขบัญชีที่ใช้โอนเติมเงิน (ช่วยจับคู่เงินเข้าอัตโนมัติเมื่อยอดซ้ำ)</span>
+            <input value={form.bank_account} onChange={set("bank_account")} placeholder="เลขบัญชีธนาคารของร้าน" />
           </label>
           <button className="btn" disabled={busy}>
             {busy ? "กำลังบันทึก…" : "บันทึกการตั้งค่า"}

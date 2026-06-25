@@ -70,6 +70,8 @@ def update_settings(
         merchant.promptpay_id = body.promptpay_id
     if body.webhook_url is not None:
         merchant.webhook_url = body.webhook_url or None
+    if body.bank_account is not None:
+        merchant.bank_account = body.bank_account.strip() or None
     if body.fee_percent is not None:
         merchant.fee_percent = body.fee_percent
     if body.fee_fixed is not None:

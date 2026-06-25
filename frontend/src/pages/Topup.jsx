@@ -145,6 +145,17 @@ export default function Topup() {
     }
   }
 
+  async function payRow(id) {
+    setErr("");
+    try {
+      // listTopups omits the QR; fetch the full record to re-open the QR to pay.
+      setActive(await api.getTopup(id));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
   return (
     <div>
       <h1 className="page-title">เติมเงิน / เครดิต</h1>
@@ -199,7 +210,10 @@ export default function Topup() {
                 <td><span className={`badge ${TOPUP_BADGE[t.status]}`}>{TOPUP_LABELS[t.status] || t.status}</span></td>
                 <td>
                   {t.status === "pending" && (
-                    <button className="btn danger" style={{ padding: "4px 10px" }} onClick={() => cancelRow(t.id)}>ยกเลิก</button>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button className="btn" style={{ padding: "4px 10px" }} onClick={() => payRow(t.id)}>ดู QR / จ่าย</button>
+                      <button className="btn danger" style={{ padding: "4px 10px" }} onClick={() => cancelRow(t.id)}>ยกเลิก</button>
+                    </div>
                   )}
                 </td>
               </tr>

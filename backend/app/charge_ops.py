@@ -139,11 +139,15 @@ def void_charge(db: Session, charge: Charge) -> Charge:
 
 
 def refund_charge(db: Session, charge: Charge, reason: str | None) -> Charge:
+    from .billing import refund_usage
+
     if charge.status != "paid":
         raise HTTPException(status.HTTP_409_CONFLICT, f"Cannot refund a {charge.status} charge")
     charge.status = "refunded"
     charge.refunded_at = utcnow()
     charge.refund_reason = reason
+    # Give back the per-transaction credit charged when this charge settled.
+    refund_usage(db, db.get(Merchant, charge.merchant_id), charge)
     db.commit()
     db.refresh(charge)
     return charge

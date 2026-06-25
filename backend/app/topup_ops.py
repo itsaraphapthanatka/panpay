@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from .models import Merchant, Topup, WalletEntry, utcnow
 from .promptpay import build_payload
-from .settings_store import PLATFORM_PROMPTPAY, get_str
+from .settings_store import PLATFORM_PROMPTPAY, TOPUP_UNIQUE_SATANG, get_bool, get_str
 
 AMOUNT_TOLERANCE = 0.001
 TOPUP_TTL_MINUTES = 30
@@ -42,7 +42,12 @@ def create_topup(db: Session, merchant: Merchant, amount: float) -> Topup:
             status.HTTP_400_BAD_REQUEST,
             "Top-up is unavailable — the platform PromptPay account is not configured yet.",
         )
-    pay_amount = _unique_pay_amount(db, float(amount))
+    # With satang on, each pending top-up gets a unique amount for precise auto
+    # matching; off = pay the exact round amount (slip still matches by topup id).
+    if get_bool(db, TOPUP_UNIQUE_SATANG, default=False):
+        pay_amount = _unique_pay_amount(db, float(amount))
+    else:
+        pay_amount = round(float(amount), 2)
     topup = Topup(
         merchant_id=merchant.id,
         amount=amount,
@@ -108,9 +113,21 @@ def cancel_topup(db: Session, topup: Topup) -> Topup:
     return topup
 
 
-def match_incoming(db: Session, amount: float) -> Topup | None:
-    """Find the single pending, non-expired top-up whose unique pay_amount equals
-    the credited amount."""
+def _digits(s: str | None) -> str:
+    return "".join(ch for ch in (s or "") if ch.isdigit())
+
+
+def account_matches(stored: str | None, incoming: str | None) -> bool:
+    """Match two account numbers tolerantly — bank notifications/slips mask digits
+    (e.g. 'xxx-x-x586-3'), so compare digit-suffixes (need ≥4 shared digits)."""
+    a, b = _digits(stored), _digits(incoming)
+    if len(a) < 4 or len(b) < 4:
+        return False
+    return a.endswith(b) or b.endswith(a)
+
+
+def pending_by_amount(db: Session, amount: float) -> list[Topup]:
+    """All pending, non-expired top-ups whose amount equals the credited amount."""
     now = utcnow()
     return (
         db.query(Topup)
@@ -120,5 +137,5 @@ def match_incoming(db: Session, amount: float) -> Topup | None:
             (Topup.expires_at.is_(None)) | (Topup.expires_at >= now),
         )
         .order_by(Topup.created_at.asc())
-        .first()
+        .all()
     )

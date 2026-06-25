@@ -75,6 +75,7 @@ class SlipVerifier:
         file_bytes: bytes | None,
         qr_payload: str | None,
         trans_ref: str | None,
+        check_receiver: list | None = None,
     ) -> VerifyResult:
         raise NotImplementedError
 
@@ -90,7 +91,7 @@ class DevVerifier(SlipVerifier):
 
     name = "dev"
 
-    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref):
+    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref, check_receiver=None):
         submitted_something = bool(file_bytes or qr_payload or trans_ref)
         if not submitted_something:
             return VerifyResult(success=False, provider=self.name, error="no_slip_submitted")
@@ -124,7 +125,7 @@ class SlipOKVerifier(SlipVerifier):
     name = "slipok"
     BASE = "https://api.slipok.com/api/line/apikey"
 
-    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref):
+    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref, check_receiver=None):
         if not settings.slipok_api_key or not settings.slipok_branch_id:
             return VerifyResult(success=False, provider=self.name, error="slipok_not_configured")
 
@@ -184,7 +185,7 @@ class EasySlipVerifier(SlipVerifier):
     name = "easyslip"
     URL = "https://developer.easyslip.com/api/v1/verify"
 
-    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref):
+    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref, check_receiver=None):
         if not settings.easyslip_api_key:
             return VerifyResult(success=False, provider=self.name, error="easyslip_not_configured")
 
@@ -263,12 +264,16 @@ class Slip2GoVerifier(SlipVerifier):
     def _url(self, path: str) -> str:
         return f"{settings.slip2go_base_url.rstrip('/')}{path}"
 
-    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref):
+    def verify(self, *, expected_amount, file_bytes, qr_payload, trans_ref, check_receiver=None):
         if not settings.slip2go_secret_key:
             return VerifyResult(success=False, provider=self.name, error="slip2go_not_configured")
 
         headers = {"Authorization": f"Bearer {settings.slip2go_secret_key}"}
         check = {"checkDuplicate": settings.slip2go_check_duplicate}
+        if check_receiver:
+            # Slip2Go verifies the slip's receiver against these; a mismatch comes
+            # back as code 200401 and is rejected (not in SUCCESS_CODES).
+            check["checkReceiver"] = check_receiver
         try:
             if file_bytes:
                 resp = httpx.post(

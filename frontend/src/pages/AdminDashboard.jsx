@@ -16,16 +16,21 @@ function PlatformSettings({ onError }) {
   const [s, setS] = useState(null);
   const [pp, setPp] = useState("");
   const [rate, setRate] = useState("");
+  const [rname, setRname] = useState("");
+  const [racct, setRacct] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
+  function sync(v) {
+    setS(v);
+    setPp(v.platform_promptpay || "");
+    setRate(String(v.credit_per_transaction));
+    setRname(v.platform_receiver_name || "");
+    setRacct(v.platform_receiver_account || "");
+  }
+
   async function refresh() {
-    try {
-      const v = await adminApi.getSettings();
-      setS(v);
-      setPp(v.platform_promptpay || "");
-      setRate(String(v.credit_per_transaction));
-    } catch (e) { onError(e.message); }
+    try { sync(await adminApi.getSettings()); } catch (e) { onError(e.message); }
   }
   useEffect(() => { refresh(); }, []);
 
@@ -33,10 +38,7 @@ function PlatformSettings({ onError }) {
     setBusy(true);
     setMsg("");
     try {
-      const v = await adminApi.updateSettings(body);
-      setS(v);
-      setPp(v.platform_promptpay || "");
-      setRate(String(v.credit_per_transaction));
+      sync(await adminApi.updateSettings(body));
       if (okMsg) setMsg(okMsg);
     } catch (e) { onError(e.message); } finally { setBusy(false); }
   }
@@ -48,6 +50,12 @@ function PlatformSettings({ onError }) {
     <div className="card" style={{ marginBottom: 14 }}>
       <strong>ตั้งค่าแพลตฟอร์ม</strong>
       {msg && <div className="notice" style={{ marginTop: 8 }}>{msg}</div>}
+      {!s.platform_receiver_name && !s.platform_receiver_account && (
+        <div className="error" style={{ marginTop: 8 }}>
+          ⚠️ ยังไม่ได้ตั้ง “บัญชีผู้รับ” — การเติมเงินด้วยสลิปจะตรวจแค่ยอด ร้านอาจอัปสลิปที่โอนเข้าบัญชีอื่นเพื่อรับเครดิตฟรีได้
+          กรุณากรอก “ชื่อบัญชีผู้รับ” ด้านล่างเพื่อเปิดการป้องกัน
+        </div>
+      )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
         <div className="muted" style={{ fontSize: 13 }}>
@@ -59,6 +67,16 @@ function PlatformSettings({ onError }) {
         </button>
       </div>
 
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
+        <div className="muted" style={{ fontSize: 13 }}>
+          เติมเงินใช้เศษสตางค์ (จับคู่ auto แม่นยำ){s.topup_unique_satang === false && " — ปิดอยู่: ยอดเติมเป็นจำนวนกลม"}
+        </div>
+        <button className={`btn ${s.topup_unique_satang ? "danger" : ""}`} disabled={busy}
+                onClick={() => patch({ topup_unique_satang: !s.topup_unique_satang })} style={{ minWidth: 100 }}>
+          {s.topup_unique_satang ? "ปิดเศษสตางค์" : "เปิดเศษสตางค์"}
+        </button>
+      </div>
+
       <div className="grid cols-2" style={{ marginTop: 14, gap: 12 }}>
         <div>
           <label className="field" style={{ marginBottom: 6 }}>
@@ -66,6 +84,20 @@ function PlatformSettings({ onError }) {
             <input value={pp} onChange={(e) => setPp(e.target.value)} placeholder="0812345678 / เลขนิติบุคคล" />
           </label>
           <button className="btn ghost" disabled={busy} onClick={() => patch({ platform_promptpay: pp }, "บันทึก PromptPay แล้ว")}>บันทึก</button>
+        </div>
+        <div>
+          <label className="field" style={{ marginBottom: 6 }}>
+            <span className="lbl">ชื่อบัญชีผู้รับ (ตรวจสลิปเติมเงิน — กันเครดิตปลอม)</span>
+            <input value={rname} onChange={(e) => setRname(e.target.value)} placeholder="ชื่อบัญชี (ไม่ใส่คำนำหน้า)" />
+          </label>
+          <label className="field" style={{ marginBottom: 6 }}>
+            <span className="lbl">เลขบัญชีผู้รับ (ไม่บังคับ, ใส่ได้แบบมีดอกจัน)</span>
+            <input value={racct} onChange={(e) => setRacct(e.target.value)} placeholder="xxxxxx1234" />
+          </label>
+          <button className="btn ghost" disabled={busy}
+                  onClick={() => patch({ platform_receiver_name: rname, platform_receiver_account: racct }, "บันทึกบัญชีผู้รับแล้ว")}>
+            บันทึกบัญชีผู้รับ
+          </button>
         </div>
         <div>
           <label className="field" style={{ marginBottom: 6 }}>

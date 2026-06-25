@@ -26,14 +26,19 @@ from ..schemas import (
 from ..billing import credit_rate
 from ..slip_qr import decode_qr
 from ..slip_verify import get_verifier
-from ..settings_store import ensure_ingest_key
+from ..settings_store import (
+    PLATFORM_RECEIVER_ACCOUNT,
+    PLATFORM_RECEIVER_NAME,
+    ensure_ingest_key,
+    get_str,
+)
 from ..topup_ops import (
     AMOUNT_TOLERANCE,
     cancel_topup,
     complete_topup,
     create_topup,
     expire_if_needed,
-    match_incoming,
+    pending_by_amount,
 )
 
 router = APIRouter(tags=["topup"])
@@ -113,9 +118,24 @@ def submit_slip(
     if file_bytes and not qr_payload:
         qr_payload = decode_qr(file_bytes)
 
+    # Verify the slip's receiver is the platform account (anti-fraud): otherwise a
+    # merchant could credit themselves with any genuine slip of the right amount.
+    # Send name and account as SEPARATE conditions — Slip2Go treats the array as
+    # OR ("ตรงอย่างน้อย 1 เงื่อนไข"). PromptPay-to-phone slips show only the proxy
+    # (phone), not the bank account number, so the name usually is what matches.
+    recv_name = get_str(db, PLATFORM_RECEIVER_NAME)
+    recv_acct = get_str(db, PLATFORM_RECEIVER_ACCOUNT)
+    check_receiver = []
+    if recv_name:
+        check_receiver.append({"accountNameTH": recv_name})
+    if recv_acct:
+        check_receiver.append({"accountNumber": recv_acct})
+    check_receiver = check_receiver or None
+
     result = get_verifier().verify(
         expected_amount=float(topup.pay_amount),
         file_bytes=file_bytes, qr_payload=qr_payload, trans_ref=None,
+        check_receiver=check_receiver,
     )
     if not result.success:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -172,12 +192,19 @@ def topup_incoming(
     if not x_ingest_key or not secrets.compare_digest(x_ingest_key, expected):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid ingest key")
 
-    topup = match_incoming(db, body.amount)
-    if not topup:
+    candidates = pending_by_amount(db, body.amount)
+    if not candidates:
         audit.record(db, action="topup.incoming.unmatched", actor="bank",
                      request=request, extra={"amount": body.amount, "ref": body.ref})
         return TopupIncomingResult(matched=False, amount=body.amount,
                                    reason="no_pending_topup_for_amount")
+    if len(candidates) > 1:
+        # Sender-account disambiguation is disabled for now (payers may transfer
+        # from a different account). Same-amount collisions fall back to slip.
+        audit.record(db, action="topup.incoming.ambiguous", actor="bank", request=request,
+                     extra={"amount": body.amount, "ref": body.ref, "candidates": len(candidates)})
+        return TopupIncomingResult(matched=False, amount=body.amount, reason="ambiguous_amount")
+    topup = candidates[0]
 
     trans_ref = body.ref or ("BANK" + secrets.token_hex(10).upper())
     topup = complete_topup(db, topup, method="bank_auto", trans_ref=trans_ref,

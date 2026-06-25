@@ -13,9 +13,12 @@ from .models import Setting
 # Setting keys
 AUTO_BANK_CHECK = "auto_bank_check"        # enable /bank/incoming auto-settlement
 PLATFORM_PROMPTPAY = "platform_promptpay"  # PromptPay id that receives merchant top-ups
+PLATFORM_RECEIVER_NAME = "platform_receiver_name"      # account holder name (TH) for slip checkReceiver
+PLATFORM_RECEIVER_ACCOUNT = "platform_receiver_account"  # account number (masked ok) for checkReceiver
 TOPUP_INGEST_KEY = "topup_ingest_key"      # secret for the platform top-up forwarder
 CREDIT_PER_TRANSACTION = "credit_per_transaction"  # global credit charged per processed txn
 DEFAULT_CREDIT_PER_TRANSACTION = "0.5"
+TOPUP_UNIQUE_SATANG = "topup_unique_satang"  # add a unique satang suffix to top-up amounts
 
 
 def get_bool(db: Session, key: str, default: bool = False) -> bool:
