@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const intervalText = (u, c) => `ทุก ${c > 1 ? c + " " : ""}${{ day: "วัน", month: "เดือน", year: "ปี" }[u]}`;
@@ -8,6 +9,7 @@ export default function MemberPlans() {
   const [plans, setPlans] = useState([]);
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ name: "", amount: "", interval_unit: "month", interval_count: 1, description: "" });
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -48,7 +50,7 @@ export default function MemberPlans() {
   }
 
   async function remove(id) {
-    if (!confirm("ลบแผนนี้?")) return;
+    if (!(await ui.confirm({ title: "ลบแผนสมาชิก", message: "ลบแผนนี้?", confirmLabel: "ลบ", danger: true }))) return;
     try {
       await api.deletePlan(id);
       load();

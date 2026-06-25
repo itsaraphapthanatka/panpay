@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { adminApi } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString("th-TH") : "—");
@@ -232,6 +233,7 @@ export default function AdminMerchantMembers() {
   const [err, setErr] = useState("");
   const [invoice, setInvoice] = useState(null);
   const [changing, setChanging] = useState(null);
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -273,7 +275,7 @@ export default function AdminMerchantMembers() {
     }
   }
   async function cancel(id) {
-    if (!confirm("ยกเลิกสมาชิกรายนี้?")) return;
+    if (!(await ui.confirm({ title: "ยกเลิกสมาชิก", message: "ยกเลิกสมาชิกรายนี้?", confirmLabel: "ยกเลิกสมาชิก", danger: true }))) return;
     try {
       await adminApi.mCancelSubscription(mid, id);
       load();
@@ -285,8 +287,8 @@ export default function AdminMerchantMembers() {
     try {
       const inv = await adminApi.mGenerateDue(mid);
       setErr("");
-      alert(`สร้างบิลต่ออายุ ${inv.length} รายการ`);
       load();
+      await ui.alert({ title: "สร้างบิลต่ออายุแล้ว", message: `สร้างบิลต่ออายุ ${inv.length} รายการ` });
     } catch (e) {
       setErr(e.message);
     }

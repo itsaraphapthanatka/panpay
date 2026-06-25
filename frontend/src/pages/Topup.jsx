@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmt = (d) => (d ? new Date(d).toLocaleString("th-TH") : "—");
@@ -11,6 +12,7 @@ function ActiveTopup({ topup, onDone, onError }) {
   const [t, setT] = useState(topup);
   const [busy, setBusy] = useState(false);
   const fileRef = useRef(null);
+  const ui = useDialog();
 
   // Poll until the auto bank-capture (or slip) settles it.
   useEffect(() => {
@@ -82,7 +84,7 @@ function ActiveTopup({ topup, onDone, onError }) {
         style={{ marginTop: 10 }}
         disabled={busy}
         onClick={async () => {
-          if (!confirm("ยกเลิกรายการเติมเงินนี้?")) return;
+          if (!(await ui.confirm({ title: "ยกเลิกการเติมเงิน", message: "ยกเลิกรายการเติมเงินนี้?", confirmLabel: "ยกเลิกรายการ", danger: true }))) return;
           setBusy(true);
           try {
             await api.cancelTopup(t.id);
@@ -107,6 +109,7 @@ export default function Topup() {
   const [active, setActive] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -135,7 +138,7 @@ export default function Topup() {
   }
 
   async function cancelRow(id) {
-    if (!confirm("ยกเลิกรายการเติมเงินนี้?")) return;
+    if (!(await ui.confirm({ title: "ยกเลิกการเติมเงิน", message: "ยกเลิกรายการเติมเงินนี้?", confirmLabel: "ยกเลิกรายการ", danger: true }))) return;
     try {
       await api.cancelTopup(id);
       if (active?.id === id) setActive(null);

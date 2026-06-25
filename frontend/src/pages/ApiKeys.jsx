@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, API_URL } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const fmt = (d) => (d ? new Date(d).toLocaleString("th-TH") : "—");
 
@@ -8,6 +9,7 @@ export default function ApiKeys() {
   const [name, setName] = useState("");
   const [newSecret, setNewSecret] = useState(null);
   const [err, setErr] = useState("");
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -34,7 +36,7 @@ export default function ApiKeys() {
   }
 
   async function revoke(id) {
-    if (!confirm("เพิกถอน API key นี้?")) return;
+    if (!(await ui.confirm({ title: "เพิกถอน API key", message: "เพิกถอน API key นี้? ระบบที่ใช้คีย์นี้จะเรียก API ไม่ได้ทันที", confirmLabel: "เพิกถอน", danger: true }))) return;
     await api.revokeKey(id);
     load();
   }

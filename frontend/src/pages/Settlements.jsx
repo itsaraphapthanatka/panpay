@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, downloadFile } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmt = (d) => (d ? new Date(d).toLocaleString("th-TH") : "—");
@@ -8,6 +9,7 @@ export default function Settlements() {
   const [rows, setRows] = useState([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -34,7 +36,8 @@ export default function Settlements() {
   }
 
   async function doPayout(id) {
-    const reference = prompt("อ้างอิงการจ่ายเงิน (เลขที่โอน ฯลฯ):") ?? null;
+    const reference = await ui.prompt({ title: "ทำรายการจ่ายออก", label: "อ้างอิงการจ่ายเงิน (เลขที่โอน ฯลฯ)", placeholder: "ไม่บังคับ", confirmLabel: "จ่ายออก" });
+    if (reference === null) return;
     try {
       await api.payout(id, reference);
       load();

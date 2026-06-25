@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { adminApi, setToken } from "../api.js";
 import StatusBadge from "../components/StatusBadge.jsx";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmt = (d) => (d ? new Date(d).toLocaleString("th-TH") : "—");
@@ -12,6 +13,7 @@ export default function AdminMerchantDetail() {
   const [charges, setCharges] = useState([]);
   const [settlements, setSettlements] = useState([]);
   const [err, setErr] = useState("");
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -36,7 +38,11 @@ export default function AdminMerchantDetail() {
       setErr("ร้านนี้ถูกระงับ — ปลดระงับก่อนจึงจะเข้าจัดการได้");
       return;
     }
-    if (!confirm(`เข้าจัดการร้าน "${m.business_name}" ด้วยสิทธิ์เต็ม?\nระบบจะเปิด dashboard ในนามร้านนี้ (ทำได้ทุกอย่างเหมือนร้านค้า)`)) return;
+    if (!(await ui.confirm({
+      title: "เข้าจัดการในนามร้าน",
+      message: `เข้าจัดการร้าน "${m.business_name}" ด้วยสิทธิ์เต็ม?\nระบบจะเปิด dashboard ในนามร้านนี้ (ทำได้ทุกอย่างเหมือนร้านค้า)`,
+      confirmLabel: "เข้าจัดการ",
+    }))) return;
     try {
       const res = await adminApi.actAs(id);
       setToken(res.access_token);

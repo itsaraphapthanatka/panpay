@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, API_URL, downloadFile, receiptUrl } from "../api.js";
 import StatusBadge from "../components/StatusBadge.jsx";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 const fmt = (d) => (d ? new Date(d).toLocaleString("th-TH") : "—");
@@ -38,6 +39,7 @@ export default function Transactions() {
   const [filter, setFilter] = useState("");
   const [openId, setOpenId] = useState(null);
   const [err, setErr] = useState("");
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -51,7 +53,7 @@ export default function Transactions() {
   }, [filter]);
 
   async function doVoid(id) {
-    if (!confirm("ยกเลิกรายการนี้?")) return;
+    if (!(await ui.confirm({ title: "ยกเลิกรายการ", message: "ยกเลิกรายการนี้?", confirmLabel: "ยกเลิกรายการ", danger: true }))) return;
     try {
       await api.voidCharge(id);
       load();
@@ -60,7 +62,8 @@ export default function Transactions() {
     }
   }
   async function doRefund(id) {
-    const reason = prompt("เหตุผลการคืนเงิน (ไม่บังคับ):") ?? null;
+    const reason = await ui.prompt({ title: "คืนเงิน", label: "เหตุผลการคืนเงิน (ไม่บังคับ)", confirmLabel: "คืนเงิน", danger: true });
+    if (reason === null) return;
     try {
       await api.refundCharge(id, reason);
       load();

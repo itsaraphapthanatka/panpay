@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { adminApi } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
@@ -20,6 +21,7 @@ function PlatformSettings({ onError }) {
   const [racct, setRacct] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const ui = useDialog();
 
   function sync(v) {
     setS(v);
@@ -113,7 +115,7 @@ function PlatformSettings({ onError }) {
         <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
           <input readOnly className="mono" value={s.topup_ingest_key} onFocus={(e) => e.target.select()} style={{ flex: 1, minWidth: 240 }} />
           <button className="btn ghost" disabled={busy}
-                  onClick={() => { if (confirm("สร้าง key ใหม่? key เดิมจะใช้ไม่ได้ทันที")) patch({ regenerate_ingest_key: true }, "สร้าง key ใหม่แล้ว"); }}>
+                  onClick={async () => { if (await ui.confirm({ title: "สร้าง ingest key ใหม่", message: "สร้าง key ใหม่? key เดิมจะใช้ไม่ได้ทันที", confirmLabel: "สร้างใหม่", danger: true })) patch({ regenerate_ingest_key: true }, "สร้าง key ใหม่แล้ว"); }}>
             สร้างใหม่
           </button>
         </div>

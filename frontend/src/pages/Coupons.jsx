@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { useDialog } from "../components/Dialog.jsx";
 
 const baht = (n) => "฿" + Number(n).toLocaleString("th-TH", { minimumFractionDigits: 2 });
 
@@ -7,6 +8,7 @@ export default function Coupons() {
   const [coupons, setCoupons] = useState([]);
   const [err, setErr] = useState("");
   const [form, setForm] = useState({ code: "", discount_type: "percent", value: "", duration: "once" });
+  const ui = useDialog();
 
   async function load() {
     try {
@@ -37,7 +39,7 @@ export default function Coupons() {
   }
 
   async function disable(id) {
-    if (!confirm("ปิดคูปองนี้?")) return;
+    if (!(await ui.confirm({ title: "ปิดคูปอง", message: "ปิดคูปองนี้?", confirmLabel: "ปิดคูปอง", danger: true }))) return;
     try {
       await api.deleteCoupon(id);
       load();
