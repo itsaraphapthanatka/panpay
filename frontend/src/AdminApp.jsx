@@ -8,6 +8,7 @@ import AdminMerchantDetail from "./pages/AdminMerchantDetail.jsx";
 import AdminMerchantMembers from "./pages/AdminMerchantMembers.jsx";
 import AdminTransactions from "./pages/AdminTransactions.jsx";
 import AdminAuditLog from "./pages/AdminAuditLog.jsx";
+import AdminSettings from "./pages/AdminSettings.jsx";
 
 function AdminProtected({ children }) {
   const { admin, loading } = useAdminAuth();
@@ -35,6 +36,7 @@ export default function AdminApp() {
         <Route path="merchants/:id/members" element={<AdminMerchantMembers />} />
         <Route path="transactions" element={<AdminTransactions />} />
         <Route path="audit" element={<AdminAuditLog />} />
+        <Route path="settings" element={<AdminSettings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

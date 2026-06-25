@@ -6,6 +6,7 @@ const links = [
   { to: "/merchants", label: "ร้านค้า", icon: "🏪" },
   { to: "/transactions", label: "รายการชำระเงิน", icon: "💳" },
   { to: "/audit", label: "บันทึกกิจกรรม", icon: "📜" },
+  { to: "/settings", label: "ตั้งค่า", icon: "⚙️" },
 ];
 
 export default function AdminLayout() {
