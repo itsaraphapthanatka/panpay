@@ -1,0 +1,17 @@
+{
+  "name": "panpay-line-balance-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "LINE SelfBot (@evex/linejs) that replies with the panpay merchant wallet balance",
+  "scripts": {
+    "start": "node --env-file=.env balance-bot.mjs"
+  },
+  "dependencies": {
+    "@evex/linejs": "npm:@jsr/evex__linejs@^3",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
