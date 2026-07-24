@@ -8,7 +8,7 @@
 
 import { BaseClient } from "@evex/linejs/base";
 import { FileStorage } from "@evex/linejs/storage";
-import { parseTransfer } from "./parser.mjs";
+import { parseMessage } from "./parser.mjs";
 
 const PANPAY_URL = process.env.PANPAY_URL || "http://localhost:8000";
 const API_KEY = process.env.PANPAY_API_KEY; // merchant secret key (sk_live_...)
@@ -50,9 +50,9 @@ for await (const op of client.createPolling().listenTalkEvents()) {
   } catch {
     msg = op.message;
   }
-  const parsed = parseTransfer(msg?.text);
+  const parsed = parseMessage(msg);
   if (!parsed) continue;
   const messageId = op.message?.id ?? `${Date.now()}`;
   console.log(`[LINE] Transfer detected: ${parsed.amount} (msg ${messageId})`);
-  await reportTransfer(parsed.amount, messageId, msg.text, msg?.from);
+  await reportTransfer(parsed.amount, messageId, parsed.text, msg?.from);
 }

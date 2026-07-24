@@ -5,8 +5,45 @@ from datetime import timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from .config import settings
 from .models import Charge, Merchant, ReceivingAccount, utcnow
 from .promptpay import build_payload
+
+# The LINE bridge matches with a ±0.005 tolerance, so 0.01-satang steps are
+# safely distinguishable. Keep this window aligned with line_bridge.MATCH_WINDOW_HOURS.
+UNIQUE_MATCH_WINDOW_HOURS = 24
+
+
+def unique_payable_amount(db: Session, merchant: Merchant, amount: float) -> float:
+    """Return ``amount`` nudged up by the fewest satang needed to make it unique
+    among the merchant's active (pending, recent) charges.
+
+    This lets the LINE bridge match an incoming bank notification to exactly one
+    charge by amount alone. Returns the amount unchanged when the feature is off,
+    when it's already unique, or (defensively) when no free slot is found.
+    """
+    base = round(float(amount), 2)
+    if not settings.unique_amount_matching:
+        return base
+
+    since = utcnow() - timedelta(hours=UNIQUE_MATCH_WINDOW_HOURS)
+    taken = {
+        round(float(a), 2)
+        for (a,) in db.query(Charge.amount)
+        .filter(
+            Charge.merchant_id == merchant.id,
+            Charge.status == "pending",
+            Charge.created_at >= since,
+        )
+        .all()
+    }
+    if base not in taken:
+        return base
+    for step in range(1, settings.unique_amount_max_steps + 1):
+        candidate = round(base + step * 0.01, 2)
+        if candidate not in taken:
+            return candidate
+    return base  # all steps taken (extremely unlikely) — fall back, may be ambiguous
 
 
 def resolve_promptpay(db: Session, merchant: Merchant, account_id: str | None) -> tuple[str, str | None]:
@@ -43,14 +80,18 @@ def create_charge(db: Session, merchant: Merchant, body) -> Charge:
     ensure_credit(db, merchant)  # block when out of prepaid credit
     promptpay_id, account_id = resolve_promptpay(db, merchant, body.account_id)
     expires_at = utcnow() + timedelta(seconds=body.expires_in) if body.expires_in else None
+    amount = unique_payable_amount(db, merchant, body.amount)
+    extra = dict(body.metadata or {})
+    if amount != round(float(body.amount), 2):
+        extra["requested_amount"] = round(float(body.amount), 2)
     charge = Charge(
         merchant_id=merchant.id,
-        amount=body.amount,
+        amount=amount,
         description=body.description,
         reference=body.reference,
-        extra=body.metadata,
+        extra=extra,
         receiving_account_id=account_id,
-        promptpay_payload=build_payload(promptpay_id, body.amount),
+        promptpay_payload=build_payload(promptpay_id, amount),
         expires_at=expires_at,
     )
     db.add(charge)

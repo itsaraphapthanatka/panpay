@@ -141,6 +141,18 @@ tr:last-child td { border-bottom: none; }
   to { transform: rotate(360deg); }
 }
 
+/* Subtle text button — used for the "confirm manually" fallback on checkout */
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--muted, #64748b);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.link-btn:hover { color: var(--text, #0f172a); }
+
 /* Modal (admin merchant edit, etc.) */
 .modal-overlay {
   position: fixed;

@@ -23,10 +23,6 @@ class Settings(BaseSettings):
     # (e.g. "/api"). Fixes Swagger/ReDoc + openapi.json URLs. Empty for local/direct.
     root_path: str = ""
 
-    # When served behind a reverse proxy under a sub-path (e.g. nginx strips /api/),
-    # set this so Swagger/ReDoc point at the correct openapi.json. Leave "" for local.
-    root_path: str = ""
-
     # Slip verification
     slip_provider: str = "dev"  # "dev" | "slipok" | "easyslip" | "slip2go"
     slipok_api_key: str = ""
@@ -38,6 +34,15 @@ class Settings(BaseSettings):
     # Verify each slip is unique (rejects re-used slips) — sent to Slip2Go.
     slip2go_check_duplicate: bool = True
     dev_auto_verify: bool = True
+
+    # Nudge each new charge's amount by a few satang so it's unique among the
+    # merchant's active pending charges. Lets the LINE bridge match an incoming
+    # bank notification to exactly one charge by amount alone (no slip upload).
+    # Costs the customer up to 0.99 THB extra; the merchant's requested amount is
+    # preserved in charge.extra["requested_amount"]. Off by default.
+    unique_amount_matching: bool = False
+    # How many satang steps (0.01 each) to try when finding a free amount.
+    unique_amount_max_steps: int = 99
 
     # Subscription renewals
     subscription_grace_days: int = 3  # days past period end before a member expires

@@ -11,6 +11,7 @@ export default function Checkout() {
   const [charge, setCharge] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showManual, setShowManual] = useState(false);
   const fileRef = useRef(null);
 
   // In embed mode, notify the parent page (panpay.js) when payment completes.
@@ -133,20 +134,35 @@ export default function Checkout() {
                 <img src={charge.qr_image} alt="PromptPay QR" />
               </div>
               <p className="muted" style={{ marginTop: 14 }}>
-                1. สแกนด้วยแอปธนาคารเพื่อจ่ายผ่าน PromptPay
+                สแกน QR ด้วยแอปธนาคารเพื่อจ่ายผ่าน PromptPay
                 <br />
-                2. <strong>แนบรูปสลิป</strong> ด้านล่างเพื่อยืนยันการชำระเงิน
+                จ่ายตามยอดนี้ให้ตรงทุกสตางค์เพื่อให้ระบบยืนยันอัตโนมัติ
               </p>
-              <form onSubmit={submitSlip} style={{ marginTop: 12 }}>
-                <input ref={fileRef} type="file" accept="image/*" style={{ marginBottom: 12 }} />
-                <button className="btn block" disabled={busy}>
-                  {busy ? "กำลังตรวจสอบสลิป…" : "แนบสลิปเพื่อยืนยันการชำระเงิน"}
-                </button>
-              </form>
-              <p className="muted" style={{ fontSize: 12, marginTop: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <div className="pay-await" style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                 <span className="pay-spinner" aria-hidden="true" />
-                หรือรอระบบตรวจสอบอัตโนมัติ (หากเปิดใช้งานไว้)
-              </p>
+                <strong>กำลังรอการชำระเงิน…</strong>
+                <span className="muted" style={{ fontSize: 13 }}>
+                  ระบบจะตรวจสอบและยืนยันให้อัตโนมัติเมื่อได้รับเงิน ไม่ต้องแนบสลิป
+                </span>
+              </div>
+
+              {!showManual ? (
+                <button
+                  type="button"
+                  className="link-btn"
+                  style={{ marginTop: 16, fontSize: 12 }}
+                  onClick={() => setShowManual(true)}
+                >
+                  ยืนยันด้วยตนเอง (แนบสลิป)
+                </button>
+              ) : (
+                <form onSubmit={submitSlip} style={{ marginTop: 16 }}>
+                  <input ref={fileRef} type="file" accept="image/*" style={{ marginBottom: 12 }} />
+                  <button className="btn block" disabled={busy}>
+                    {busy ? "กำลังตรวจสอบสลิป…" : "แนบสลิปเพื่อยืนยันการชำระเงิน"}
+                  </button>
+                </form>
+              )}
             </>
           )}
         </div>

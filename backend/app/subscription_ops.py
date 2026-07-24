@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from .charge_ops import resolve_promptpay
+from .charge_ops import resolve_promptpay, unique_payable_amount
 from .models import Charge, Coupon, Merchant, Plan, Subscription, utcnow
 from .notifications import notify_invoice_issued, notify_payment_received
 from .promptpay import build_payload
@@ -61,14 +61,17 @@ def _create_invoice(
 
     base = round(base, 2)
     promptpay_id, account_id = resolve_promptpay(db, merchant, None)
+    payable = unique_payable_amount(db, merchant, base)
+    if payable != base:
+        extra["requested_amount"] = base
     charge = Charge(
         merchant_id=merchant.id,
-        amount=base,
+        amount=payable,
         description=description or f"ค่าสมาชิก: {plan.name}",
         reference=subscription.customer_ref,
         receiving_account_id=account_id,
         subscription_id=subscription.id,
-        promptpay_payload=build_payload(promptpay_id, base),
+        promptpay_payload=build_payload(promptpay_id, payable),
         extra=extra,
     )
     db.add(charge)
