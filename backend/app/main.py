@@ -18,6 +18,7 @@ from .routers import (
     dashboard,
     embed,
     line,
+    line_bridge,
     membership,
     portal,
     topup,
@@ -95,7 +96,7 @@ app = FastAPI(
     description="A PromptPay payment gateway with slip verification (paynoi-style).",
     version="0.1.0",
     lifespan=lifespan,
-    root_path=settings.root_path,
+    root_path=settings.root_path,  # set ROOT_PATH=/api when behind a proxy that strips /api
 )
 
 app.add_middleware(
@@ -122,5 +123,6 @@ app.include_router(embed.router)
 app.include_router(membership.router)
 app.include_router(portal.router)
 app.include_router(line.router)
+app.include_router(line_bridge.router)
 app.include_router(bank.router)
 app.include_router(topup.router)

@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     checkout_base_url: str = "http://localhost:5173"
     cors_origins: str = "http://localhost:5173"
+    # Public path prefix when behind a reverse proxy that mounts the API under it
+    # (e.g. "/api"). Fixes Swagger/ReDoc + openapi.json URLs. Empty for local/direct.
+    root_path: str = ""
 
     # When served behind a reverse proxy under a sub-path (e.g. nginx strips /api/),
     # set this so Swagger/ReDoc point at the correct openapi.json. Leave "" for local.

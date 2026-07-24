@@ -188,7 +188,7 @@ to try it after creating a charge.
 
 ## Tests
 
-A pytest suite (82 tests) runs against a dedicated `panpay_test` Postgres database — it's
+A pytest suite (88 tests) runs against a dedicated `panpay_test` Postgres database — it's
 created automatically (the role needs `CREATEDB`), the schema is built per session, and each
 test starts clean (tables truncated, rate limiter reset).
 
@@ -231,6 +231,7 @@ frontend/
   src/pages/           # Login, Register, Dashboard, Transactions, Members,
                        #   Settlements, ApiKeys, AuditLog, Settings, Checkout
   public/embed-demo.html
+line-bridge/           # EXPERIMENTAL LINE selfbot bridge (linejs) — see its README
 docker-compose.yml     # Postgres
 dev.sh                 # run backend + frontend together
 ```
