@@ -12,6 +12,7 @@ import { parseMessage } from "./parser.mjs";
 
 const PANPAY_URL = process.env.PANPAY_URL || "http://localhost:8000";
 const API_KEY = process.env.PANPAY_API_KEY; // merchant secret key (sk_live_...)
+const INGEST_KEY = process.env.PANPAY_INGEST_KEY; // platform top-up ingest key (optional)
 
 if (!API_KEY) {
   console.error("Set PANPAY_API_KEY (the merchant's sk_live_... key).");
@@ -26,15 +27,33 @@ client.on("pincall", (pin) => console.log("[LINE] Enter this PIN on your phone:"
 client.on("update:authtoken", (t) => storage.set(".auth", t));
 
 async function reportTransfer(amount, messageId, text, sender) {
+  // 1) Try to match a merchant charge (a customer paying a checkout invoice).
+  let matchedCharge = false;
   try {
     const res = await fetch(`${PANPAY_URL}/v1/line/transfer`, {
       method: "POST",
       headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ amount, message_id: String(messageId), text, sender }),
     });
-    console.log(`[PanPay] ${res.status}`, await res.text());
+    const body = await res.text();
+    console.log(`[PanPay] charge ${res.status}`, body);
+    try { matchedCharge = JSON.parse(body).matched === true; } catch {}
   } catch (e) {
-    console.error("[PanPay] report failed:", e.message);
+    console.error("[PanPay] charge report failed:", e.message);
+  }
+  if (matchedCharge || !INGEST_KEY) return;
+
+  // 2) No charge matched — fall back to a platform top-up (a merchant crediting
+  //    their own prepaid balance). Uses the platform ingest key, not the API key.
+  try {
+    const res = await fetch(`${PANPAY_URL}/topup/incoming`, {
+      method: "POST",
+      headers: { "x-ingest-key": INGEST_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, ref: `LINE:${messageId}`, sender_name: sender }),
+    });
+    console.log(`[PanPay] topup ${res.status}`, await res.text());
+  } catch (e) {
+    console.error("[PanPay] topup report failed:", e.message);
   }
 }
 
