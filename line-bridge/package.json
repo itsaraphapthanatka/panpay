@@ -1,0 +1,12 @@
+{
+  "name": "panpay-line-bridge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@evex/linejs": "npm:@jsr/evex__linejs@^3.1.4"
+  }
+}
