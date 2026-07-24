@@ -16,11 +16,13 @@ UNIQUE_MATCH_WINDOW_HOURS = 24
 
 def unique_payable_amount(db: Session, merchant: Merchant, amount: float) -> float:
     """Return ``amount`` nudged up by the fewest satang needed to make it unique
-    among the merchant's active (pending, recent) charges.
+    among all active (pending, recent) charges across every merchant.
 
-    This lets the LINE bridge match an incoming bank notification to exactly one
-    charge by amount alone. Returns the amount unchanged when the feature is off,
-    when it's already unique, or (defensively) when no free slot is found.
+    Uniqueness is intentionally *global* (not per-merchant): several merchants
+    may collect into one shared bank account, so a single bank notification must
+    map to exactly one pending charge by amount alone regardless of which
+    merchant owns it. Returns the amount unchanged when the feature is off, when
+    it's already unique, or (defensively) when no free slot is found.
     """
     base = round(float(amount), 2)
     if not settings.unique_amount_matching:
@@ -31,7 +33,6 @@ def unique_payable_amount(db: Session, merchant: Merchant, amount: float) -> flo
         round(float(a), 2)
         for (a,) in db.query(Charge.amount)
         .filter(
-            Charge.merchant_id == merchant.id,
             Charge.status == "pending",
             Charge.created_at >= since,
         )

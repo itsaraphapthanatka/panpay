@@ -193,6 +193,11 @@ class BankIncomingRequest(BaseModel):
     ref: str | None = Field(default=None, description="bank transaction ref if available (dedupe)")
     sender_name: str | None = None
     transferred_at: datetime | None = None
+    account: str | None = Field(
+        default=None,
+        description="receiving PromptPay id the money landed in; scopes platform-wide "
+        "matching to charges for that account (e.g. one shared collection account)",
+    )
     raw: dict = Field(default_factory=dict, description="raw notification text/payload for the record")
 
 
