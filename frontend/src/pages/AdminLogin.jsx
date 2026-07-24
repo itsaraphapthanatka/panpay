@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAdminAuth } from "../adminAuth.jsx";
+import Logo from "../components/Logo.jsx";
 
 export default function AdminLogin() {
   const { login } = useAdminAuth();
@@ -25,8 +26,8 @@ export default function AdminLogin() {
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit}>
         <div className="brand-mark" style={{ marginBottom: 22 }}>
-          <span className="brand-dot" style={{ background: "#f59e0b" }} /> PanPay
-          <span style={{ fontSize: 12, color: "#f59e0b", marginLeft: 4 }}>ADMIN</span>
+          <Logo height={32} />
+          <span style={{ fontSize: 12, color: "#f59e0b", marginLeft: 8, fontWeight: 800 }}>ADMIN</span>
         </div>
         <h2 style={{ margin: "0 0 4px" }}>เข้าสู่ระบบผู้ดูแล</h2>
         <p className="muted" style={{ marginTop: 0 }}>จัดการแพลตฟอร์มและร้านค้าทั้งหมด</p>

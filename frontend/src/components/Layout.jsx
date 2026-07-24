@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { setToken } from "../api.js";
+import Logo from "./Logo.jsx";
 
 const links = [
   { to: "/", label: "ภาพรวม", icon: "📊", end: true },
@@ -33,9 +34,8 @@ export default function Layout() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand-mark">
-          <span className="brand-dot" />
-          PanPay
+        <div className="brand-mark" style={{ margin: "4px 8px 22px" }}>
+          <Logo light height={26} />
         </div>
         {links.map((l) => (
           <NavLink key={l.to} to={l.to} end={l.end} className="nav-link">

@@ -91,10 +91,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="PanPay Gateway",
+    title="PunPay Gateway",
     description="A PromptPay payment gateway with slip verification (paynoi-style).",
     version="0.1.0",
     lifespan=lifespan,
+    root_path=settings.root_path,
 )
 
 app.add_middleware(

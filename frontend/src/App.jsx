@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
 import Login from "./pages/Login.jsx";
@@ -15,12 +15,16 @@ import Members from "./pages/Members.jsx";
 import Topup from "./pages/Topup.jsx";
 import Portal from "./pages/Portal.jsx";
 import Checkout from "./pages/Checkout.jsx";
+import Landing from "./pages/Landing.jsx";
 
-function Protected({ children }) {
+// At "/" show the public landing page when logged out, the dashboard app when logged in.
+// Logged-out visits to a protected sub-path go to login instead of the landing page.
+function Home() {
   const { merchant, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div style={{ padding: 40 }}>Loading…</div>;
-  if (!merchant) return <Navigate to="/login" replace />;
-  return children;
+  if (merchant) return <Layout />;
+  return location.pathname === "/" ? <Landing /> : <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -34,14 +38,7 @@ export default function App() {
       <Route path="/login" element={merchant ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/register" element={merchant ? <Navigate to="/" replace /> : <Register />} />
 
-      <Route
-        path="/"
-        element={
-          <Protected>
-            <Layout />
-          </Protected>
-        }
-      >
+      <Route path="/" element={<Home />}>
         <Route index element={<Dashboard />} />
         <Route path="transactions" element={<Transactions />} />
         <Route path="api-keys" element={<ApiKeys />} />

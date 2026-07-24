@@ -33,7 +33,7 @@ def main() -> None:
             merchant = Merchant(
                 email=DEMO_EMAIL,
                 password_hash=hash_password(DEMO_PASSWORD),
-                business_name="PanPay Demo Shop",
+                business_name="PunPay Demo Shop",
                 promptpay_id="0812345678",  # demo PromptPay phone proxy
             )
             db.add(merchant)

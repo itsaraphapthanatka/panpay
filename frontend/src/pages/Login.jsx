@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import Logo from "../components/Logo.jsx";
 
 export default function Login() {
   const { login } = useAuth();
@@ -25,8 +26,8 @@ export default function Login() {
   return (
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit}>
-        <div className="brand-mark" style={{ marginBottom: 22 }}>
-          <span className="brand-dot" /> PanPay
+        <div style={{ marginBottom: 22 }}>
+          <Logo height={34} />
         </div>
         <h2 style={{ margin: "0 0 4px" }}>เข้าสู่ระบบร้านค้า</h2>
         <p className="muted" style={{ marginTop: 0 }}>จัดการการรับชำระเงินของคุณ</p>

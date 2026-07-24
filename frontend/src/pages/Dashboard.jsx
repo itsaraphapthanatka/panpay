@@ -6,10 +6,10 @@ import StatusBadge from "../components/StatusBadge.jsx";
 // Load panpay.js (the embeddable popup script) on demand, then resolve.
 function loadPanpayScript() {
   return new Promise((resolve, reject) => {
-    if (window.PanPay) return resolve(window.PanPay);
+    if (window.PunPay) return resolve(window.PunPay);
     const s = document.createElement("script");
     s.src = `${API_URL}/panpay.js`;
-    s.onload = () => resolve(window.PanPay);
+    s.onload = () => resolve(window.PunPay);
     s.onerror = () => reject(new Error("โหลด panpay.js ไม่สำเร็จ"));
     document.head.appendChild(s);
   });
@@ -132,8 +132,8 @@ export default function Dashboard() {
                   className="btn ghost"
                   onClick={async () => {
                     try {
-                      const PanPay = await loadPanpayScript();
-                      PanPay.checkout({
+                      const PunPay = await loadPanpayScript();
+                      PunPay.checkout({
                         chargeId: created.id,
                         onSuccess: () => load(),
                       });

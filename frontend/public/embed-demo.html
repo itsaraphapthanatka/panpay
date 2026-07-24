@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PanPay — Embed Checkout Demo</title>
+    <title>PunPay — Embed Checkout Demo</title>
     <style>
       body { font-family: -apple-system, "Sarabun", sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; color: #0f172a; }
       h1 { font-size: 22px; }
@@ -16,7 +16,7 @@
     </style>
   </head>
   <body>
-    <h1>PanPay — ปุ่มจ่ายเงินแบบฝัง (Embed)</h1>
+    <h1>PunPay — ปุ่มจ่ายเงินแบบฝัง (Embed)</h1>
     <p class="muted">
       ตัวอย่างการฝังหน้าจ่ายเงินลงในเว็บของร้านค้า ด้วยสคริปต์ <code>panpay.js</code> เพียงไฟล์เดียว
       (popup ไม่ต้องเปลี่ยนหน้า)
@@ -36,7 +36,7 @@
     <h3>โค้ดที่ใช้</h3>
     <pre>&lt;script src="http://localhost:8000/panpay.js"&gt;&lt;/script&gt;
 &lt;script&gt;
-  PanPay.checkout({
+  PunPay.checkout({
     chargeId: "chg_xxxxxxxxxxxx",         // จาก POST /v1/charges ฝั่งเซิร์ฟเวอร์
     onSuccess: function (e) { alert("ชำระเงินสำเร็จ! ยอด " + e.amount); },
     onClose:   function () { console.log("ปิดหน้าต่าง"); }
@@ -50,7 +50,7 @@
         var id = document.getElementById("chargeId").value.trim();
         if (!id) return alert("กรอก charge id ก่อน");
         document.getElementById("result").textContent = "";
-        PanPay.checkout({
+        PunPay.checkout({
           chargeId: id,
           onSuccess: function (e) {
             document.getElementById("result").textContent =

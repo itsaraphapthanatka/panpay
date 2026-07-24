@@ -132,7 +132,7 @@ def generate_receipt_pdf(charge: Charge) -> bytes:
         pay_tbl.setStyle(TableStyle([("BOTTOMPADDING", (0, 0), (-1, -1), 3), ("TOPPADDING", (0, 0), (-1, -1), 3)]))
         elems += [Paragraph("รายละเอียดการชำระเงิน / Payment details", sub), Spacer(1, 2 * mm), pay_tbl]
 
-    elems += [Spacer(1, 12 * mm), Paragraph("ออกโดยระบบ PanPay · เอกสารนี้สร้างอัตโนมัติ", label)]
+    elems += [Spacer(1, 12 * mm), Paragraph("ออกโดยระบบ PunPay · เอกสารนี้สร้างอัตโนมัติ", label)]
 
     doc.build(elems)
     return buf.getvalue()

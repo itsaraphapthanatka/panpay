@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     checkout_base_url: str = "http://localhost:5173"
     cors_origins: str = "http://localhost:5173"
 
+    # When served behind a reverse proxy under a sub-path (e.g. nginx strips /api/),
+    # set this so Swagger/ReDoc point at the correct openapi.json. Leave "" for local.
+    root_path: str = ""
+
     # Slip verification
     slip_provider: str = "dev"  # "dev" | "slipok" | "easyslip" | "slip2go"
     slipok_api_key: str = ""
@@ -42,7 +46,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    smtp_from: str = "PanPay <no-reply@panpay.local>"
+    smtp_from: str = "PunPay <no-reply@panpay.local>"
     smtp_tls: bool = True
     sms_api_url: str = ""
     sms_api_key: str = ""

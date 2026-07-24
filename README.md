@@ -1,9 +1,9 @@
-# PanPay — PromptPay Payment Gateway
+# PunPay — PromptPay Payment Gateway
 
 A self-hosted payment gateway in the style of [paynoi.com](https://paynoi.com): merchants
 generate dynamic **PromptPay QR codes**, customers pay directly into the merchant's bank
 account, and the system confirms payment via **slip verification** — then fires a webhook.
-No money is ever held on PanPay's side; it only *verifies* that a transfer happened.
+No money is ever held on PunPay's side; it only *verifies* that a transfer happened.
 
 - **Backend:** FastAPI + SQLAlchemy + PostgreSQL
 - **Frontend:** React + Vite
@@ -12,7 +12,7 @@ No money is ever held on PanPay's side; it only *verifies* that a transfer happe
 
 > ⚠️ **Legal note (Thailand):** Operating a real payment service is regulated by the Bank of
 > Thailand. The slip-verification model keeps you on safer ground because funds go straight to
-> the merchant's account and PanPay only confirms the transfer — but verify your obligations
+> the merchant's account and PunPay only confirms the transfer — but verify your obligations
 > before going live commercially.
 
 ---
@@ -137,7 +137,7 @@ curl -X POST http://localhost:8000/v1/charges/chg_xxx/refund \
   -d '{"reason": "customer request"}'
 ```
 > **Refund semantics:** because funds settle directly into the merchant's bank account
-> (PanPay never holds money), a refund **records** the reversal and notifies your system —
+> (PunPay never holds money), a refund **records** the reversal and notifies your system —
 > the merchant performs the actual transfer back to the customer.
 
 ### Embed a popup checkout in your own site
@@ -148,7 +148,7 @@ The backend serves `panpay.js` at `/panpay.js`.
 <script src="http://localhost:8000/panpay.js"></script>
 <script>
   // chargeId comes from POST /v1/charges on your server
-  PanPay.checkout({
+  PunPay.checkout({
     chargeId: "chg_xxxxxxxxxxxx",
     onSuccess: function (e) { console.log("paid", e.amount); },
     onClose:   function () { /* user closed the modal */ },

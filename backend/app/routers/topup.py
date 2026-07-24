@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from .. import audit
 from ..database import get_db
-from ..deps import get_current_merchant
+from ..deps import get_api_merchant, get_current_merchant
 from ..models import Merchant, Topup, WalletEntry, utcnow
 from ..promptpay import payload_to_data_uri
 from ..schemas import (
@@ -169,6 +169,29 @@ def cancel(
 
 @router.get("/dashboard/balance", response_model=BalanceOut)
 def balance(merchant: Merchant = Depends(get_current_merchant), db: Session = Depends(get_db)):
+    entries = (
+        db.query(WalletEntry).filter(WalletEntry.merchant_id == merchant.id)
+        .order_by(WalletEntry.created_at.desc()).limit(50).all()
+    )
+    return BalanceOut(
+        balance=float(merchant.balance or 0),
+        credit_per_transaction=credit_rate(db, merchant),
+        entries=[WalletEntryOut.model_validate(e) for e in entries],
+    )
+
+
+# ---- API-key balance read (for bots / integrations such as the LINE SelfBot) ----
+@router.get("/v1/balance", response_model=BalanceOut, tags=["balance (api)"])
+def api_balance(
+    merchant: Merchant = Depends(get_api_merchant),
+    db: Session = Depends(get_db),
+):
+    """Read the merchant's wallet balance using a non-expiring API key (sk_...).
+
+    Same payload as /dashboard/balance but authenticated with X-API-Key /
+    `Authorization: Bearer sk_...`, so a long-running client (e.g. the LINE
+    SelfBot) can poll it without a short-lived JWT.
+    """
     entries = (
         db.query(WalletEntry).filter(WalletEntry.merchant_id == merchant.id)
         .order_by(WalletEntry.created_at.desc()).limit(50).all()

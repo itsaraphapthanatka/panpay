@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import Logo from "../components/Logo.jsx";
 
 export default function Register() {
   const { register } = useAuth();
@@ -31,8 +32,8 @@ export default function Register() {
   return (
     <div className="auth-wrap">
       <form className="auth-card" onSubmit={submit}>
-        <div className="brand-mark" style={{ marginBottom: 22 }}>
-          <span className="brand-dot" /> PanPay
+        <div style={{ marginBottom: 22 }}>
+          <Logo height={34} />
         </div>
         <h2 style={{ margin: "0 0 4px" }}>สมัครร้านค้า</h2>
         <p className="muted" style={{ marginTop: 0 }}>เริ่มรับชำระเงินผ่าน PromptPay</p>

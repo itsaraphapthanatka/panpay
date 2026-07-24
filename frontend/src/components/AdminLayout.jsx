@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAdminAuth } from "../adminAuth.jsx";
+import Logo from "./Logo.jsx";
 
 const links = [
   { to: "/", label: "ภาพรวมระบบ", icon: "📊", end: true },
@@ -15,8 +16,8 @@ export default function AdminLayout() {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand-mark">
-          <span className="brand-dot" style={{ background: "#f59e0b" }} />
-          PanPay <span style={{ fontSize: 12, color: "#f59e0b", marginLeft: 4 }}>ADMIN</span>
+          <Logo light height={24} />
+          <span style={{ fontSize: 12, color: "#f59e0b", marginLeft: 8, fontWeight: 800 }}>ADMIN</span>
         </div>
         {links.map((l) => (
           <NavLink key={l.to} to={l.to} end={l.end} className="nav-link">

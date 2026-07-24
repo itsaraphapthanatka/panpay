@@ -1,4 +1,4 @@
-"""Pytest fixtures for the PanPay backend.
+"""Pytest fixtures for the PunPay backend.
 
 Tests run against a dedicated Postgres database (default: panpay_test) so they
 never touch dev/demo data. The DB is created if missing (the role needs

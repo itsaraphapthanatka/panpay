@@ -5,7 +5,7 @@ Usage on the merchant's site:
     <script src="https://your-gateway/panpay.js"></script>
     <script>
       // chargeId comes from POST /v1/charges on your server
-      PanPay.checkout({
+      PunPay.checkout({
         chargeId: "chg_...",
         onSuccess: function (e) { console.log("paid", e); },
         onClose:   function () { console.log("closed"); },
@@ -27,7 +27,7 @@ _PANPAY_JS = """
 
   function checkout(opts) {
     opts = opts || {};
-    if (!opts.chargeId) { console.error("[PanPay] checkout: chargeId is required"); return; }
+    if (!opts.chargeId) { console.error("[PunPay] checkout: chargeId is required"); return; }
     var overlay = el("div",
       "position:fixed;inset:0;background:rgba(15,23,42,.55);display:flex;" +
       "align-items:center;justify-content:center;z-index:2147483647;padding:16px;");
@@ -56,7 +56,7 @@ _PANPAY_JS = """
     return { close: close };
   }
 
-  window.PanPay = { checkout: checkout, base: BASE };
+  window.PunPay = { checkout: checkout, base: BASE };
 })();
 """.strip()
 

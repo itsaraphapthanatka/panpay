@@ -15,7 +15,7 @@ function PaymentDetail({ charge }) {
           คืนเงินแล้วเมื่อ {fmt(charge.refunded_at)}
           {charge.refund_reason ? ` · เหตุผล: ${charge.refund_reason}` : ""}
           <br />
-          <span className="muted">หมายเหตุ: PanPay บันทึกการคืนเงิน ร้านค้าต้องโอนเงินคืนลูกค้าเอง (เงินเข้าบัญชีร้านโดยตรง)</span>
+          <span className="muted">หมายเหตุ: PunPay บันทึกการคืนเงิน ร้านค้าต้องโอนเงินคืนลูกค้าเอง (เงินเข้าบัญชีร้านโดยตรง)</span>
         </div>
       )}
       {p ? (
@@ -88,7 +88,7 @@ export default function Transactions() {
         <button
           className="btn ghost"
           onClick={() =>
-            downloadFile(`/dashboard/charges/export.csv${filter ? `?status=${filter}` : ""}`, "panpay-transactions.csv").catch((e) => setErr(e.message))
+            downloadFile(`/dashboard/charges/export.csv${filter ? `?status=${filter}` : ""}`, "punpay-transactions.csv").catch((e) => setErr(e.message))
           }
         >
           ⬇ Export CSV
