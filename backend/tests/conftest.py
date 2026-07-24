@@ -15,6 +15,11 @@ os.environ.setdefault("DEV_AUTO_VERIFY", "true")
 os.environ.setdefault("JWT_SECRET", "test-secret-key-of-sufficient-length-0123456789")
 os.environ.setdefault("CHECKOUT_BASE_URL", "http://testserver")
 
+# Force notification providers OFF so tests never hit real Brevo/SMS/LINE (the dev
+# backend/.env has live creds). Direct assignment overrides any .env file value.
+for _k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD", "SMS_API_URL", "SMS_API_KEY", "LINE_CHANNEL_ACCESS_TOKEN"):
+    os.environ[_k] = ""
+
 import secrets  # noqa: E402
 
 import psycopg  # noqa: E402

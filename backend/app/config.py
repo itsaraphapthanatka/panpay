@@ -19,6 +19,9 @@ class Settings(BaseSettings):
 
     checkout_base_url: str = "http://localhost:5173"
     cors_origins: str = "http://localhost:5173"
+    # Public path prefix when behind a reverse proxy that mounts the API under it
+    # (e.g. "/api"). Fixes Swagger/ReDoc + openapi.json URLs. Empty for local/direct.
+    root_path: str = ""
 
     # Slip verification
     slip_provider: str = "dev"  # "dev" | "slipok" | "easyslip" | "slip2go"
