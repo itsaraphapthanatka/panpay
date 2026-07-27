@@ -75,10 +75,8 @@ function formatTHB(n) {
   }).format(Number(n) || 0);
 }
 
-async function main() {
-  const storage = new FileStorage("./storage.json");
-  const client = new BaseClient({ device: "DESKTOPWIN", storage });
-
+/** Bind login event handlers (QR / PIN / token cache) to a client. */
+function bindLoginHandlers(client, storage) {
   client.on("qrcall", (url) => {
     console.log("\nScan this QR with the LINE mobile app (do NOT open it in a browser):\n");
     qrcode.generate(url, { small: true });
@@ -86,23 +84,42 @@ async function main() {
   });
   client.on("pincall", (pin) => console.log("\n>>> Enter this PIN number in your LINE app:", pin, "\n"));
   client.on("update:authtoken", (t) => storage.set(".auth", t));
+}
 
+/**
+ * Return a logged-in client. Resume from the cached token when possible;
+ * otherwise do a QR login, regenerating a fresh QR whenever the previous one
+ * expires (LINE returns HTTP 410) so the operator isn't racing a short timer.
+ */
+async function connect(storage) {
   const cached = await storage.get(".auth");
-  try {
-    await client.loginProcess.login(
-      typeof cached === "string" ? { authToken: cached } : {},
-    );
-  } catch (e) {
-    // Stale/revoked token (e.g. V3_TOKEN_CLIENT_LOGGED_OUT) — drop it and
-    // fall back to a fresh QR login.
-    if (typeof cached === "string") {
+  if (typeof cached === "string") {
+    const client = new BaseClient({ device: "DESKTOPWIN", storage });
+    bindLoginHandlers(client, storage);
+    try {
+      await client.loginProcess.login({ authToken: cached });
+      return client;
+    } catch (e) {
       console.log("Cached token rejected (", e.message, ") — starting fresh QR login…");
       await storage.delete?.(".auth");
-      await client.loginProcess.login({});
-    } else {
-      throw e;
     }
   }
+  for (let attempt = 1; ; attempt++) {
+    const client = new BaseClient({ device: "DESKTOPWIN", storage });
+    bindLoginHandlers(client, storage);
+    try {
+      await client.loginProcess.login({});
+      return client;
+    } catch (e) {
+      console.log(`\nQR login attempt ${attempt} failed (${e.message}) — generating a new QR in 2s…\n`);
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+}
+
+async function main() {
+  const storage = new FileStorage("./storage.json");
+  const client = await connect(storage);
   try {
     const me = await client.talk.getProfile();
     console.log(`Logged in as: ${me.displayName}  (userId/mid: ${me.mid})`);
