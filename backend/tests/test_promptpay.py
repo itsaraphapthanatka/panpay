@@ -1,4 +1,7 @@
-from app.promptpay import _crc16, build_payload
+import pytest
+
+from app.promptpay import _crc16, build_payload, validate_promptpay
+from app.schemas import MerchantSettingsUpdate, ReceivingAccountCreate, RegisterRequest
 
 
 def test_crc16_standard_check_value():
@@ -29,3 +32,51 @@ def test_static_payload_has_no_amount():
 def test_national_id_proxy():
     payload = build_payload("1234567890123", 50.0)
     assert "1234567890123" in payload   # 13-digit tax/national id used as-is
+
+
+# ---- PromptPay validation (reject malformed ids before they become QRs) ----
+
+@pytest.mark.parametrize("proxy,digits", [
+    ("0942519661", "0942519661"),            # 10-digit mobile
+    ("094-251-9661", "0942519661"),          # formatting stripped
+    ("1100702557380", "1100702557380"),      # 13-digit national/tax id
+    ("123456789012345", "123456789012345"),  # 15-digit e-Wallet
+])
+def test_validate_promptpay_accepts_valid(proxy, digits):
+    assert validate_promptpay(proxy) == digits
+
+
+@pytest.mark.parametrize("proxy", [
+    "100702557380",    # 12 digits — the typo that produced an unscannable QR
+    "12345",           # too short
+    "9942519661",      # 10 digits but no leading 0
+    "12345678901234",  # 14 digits
+    "",
+    None,
+])
+def test_validate_promptpay_rejects_invalid(proxy):
+    with pytest.raises(ValueError):
+        validate_promptpay(proxy)
+
+
+def test_build_payload_rejects_invalid_proxy():
+    with pytest.raises(ValueError):
+        build_payload("100702557380", 1.00)
+
+
+def test_schema_rejects_invalid_promptpay():
+    for make in (
+        lambda: RegisterRequest(email="a@b.co", password="secret1",
+                                business_name="X", promptpay_id="100702557380"),
+        lambda: MerchantSettingsUpdate(promptpay_id="100702557380"),
+        lambda: ReceivingAccountCreate(name="main", promptpay_id="100702557380"),
+    ):
+        with pytest.raises(ValueError):
+            make()
+
+
+def test_schema_allows_valid_and_none():
+    assert MerchantSettingsUpdate(promptpay_id="1100702557380").promptpay_id == "1100702557380"
+    assert MerchantSettingsUpdate(promptpay_id=None).promptpay_id is None
+    assert RegisterRequest(email="a@b.co", password="secret1",
+                           business_name="X").promptpay_id is None

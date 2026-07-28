@@ -26,18 +26,36 @@ def _crc16(payload: str) -> str:
     return f"{crc:04X}"
 
 
+def validate_promptpay(proxy: str) -> str:
+    """Return the digit string of a valid Thai PromptPay proxy, else raise ValueError.
+
+    Valid proxies: a 10-digit mobile number (leading 0), a 13-digit national /
+    tax id, or a 15-digit e-Wallet id. Anything else (e.g. a 12-digit typo) would
+    otherwise be silently turned into an unscannable QR, so reject it up front.
+    """
+    digits = "".join(c for c in (proxy or "") if c.isdigit())
+    if len(digits) == 10 and digits.startswith("0"):
+        return digits
+    if len(digits) in (13, 15):
+        return digits
+    raise ValueError(
+        "PromptPay ID ต้องเป็นเบอร์มือถือ 10 หลัก (ขึ้นต้นด้วย 0), "
+        "เลขประจำตัวประชาชน/ผู้เสียภาษี 13 หลัก, หรือ e-Wallet 15 หลัก "
+        f"(ได้รับ {len(digits)} หลัก)"
+    )
+
+
 def _format_proxy(proxy: str) -> tuple[str, str]:
     """Return (sub_tag, value) for the merchant account info block."""
-    digits = "".join(c for c in proxy if c.isdigit())
-    if len(digits) >= 15:
+    digits = validate_promptpay(proxy)
+    if len(digits) == 15:
         # e-Wallet id
         return "03", digits
     if len(digits) == 13:
         # National ID / Tax ID
         return "02", digits
     # Mobile number -> 0066 + 9 digit local number (drop leading 0)
-    local = digits[1:] if digits.startswith("0") else digits
-    return "01", "0066" + local
+    return "01", "0066" + digits[1:]
 
 
 def build_payload(proxy: str, amount: float | None = None) -> str:

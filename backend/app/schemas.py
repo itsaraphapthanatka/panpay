@@ -1,6 +1,20 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, EmailStr, Field
+
+
+def _validate_promptpay_field(v: str | None) -> str | None:
+    """Reject a malformed PromptPay id at the API boundary (-> 422)."""
+    if not v:
+        return v
+    from .promptpay import validate_promptpay
+    validate_promptpay(v)  # raises ValueError -> 422 with the reason
+    return v.strip()
+
+
+# A PromptPay id that must be a valid mobile / national-id / e-Wallet proxy.
+PromptPayId = Annotated[str, AfterValidator(_validate_promptpay_field)]
 
 
 # ---- Auth ----
@@ -8,7 +22,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     business_name: str
-    promptpay_id: str | None = None
+    promptpay_id: PromptPayId | None = None
 
 
 class LoginRequest(BaseModel):
@@ -39,7 +53,7 @@ class MerchantOut(BaseModel):
 
 class MerchantSettingsUpdate(BaseModel):
     business_name: str | None = None
-    promptpay_id: str | None = None
+    promptpay_id: PromptPayId | None = None
     webhook_url: str | None = None
     bank_account: str | None = None
     fee_percent: float | None = Field(default=None, ge=0, le=100)
@@ -212,7 +226,7 @@ class BankIncomingResult(BaseModel):
 # ---- Receiving accounts ----
 class ReceivingAccountCreate(BaseModel):
     name: str
-    promptpay_id: str
+    promptpay_id: PromptPayId
     is_default: bool = False
 
 
