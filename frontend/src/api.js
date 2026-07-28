@@ -113,6 +113,8 @@ export const adminApi = {
   stats: () => request("/admin/stats", { admin: true }),
   getSettings: () => request("/admin/settings", { admin: true }),
   updateSettings: (b) => request("/admin/settings", { method: "PATCH", body: b, admin: true }),
+  lineBot: () => request("/admin/line-bot", { admin: true }),
+  lineBotReconnect: () => request("/admin/line-bot/reconnect", { method: "POST", admin: true }),
   // (topup ingest config + credit rate live in admin settings above)
   merchants: (q) => request(`/admin/merchants${q ? `?q=${encodeURIComponent(q)}` : ""}`, { admin: true }),
   merchant: (id) => request(`/admin/merchants/${id}`, { admin: true }),

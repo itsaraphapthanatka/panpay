@@ -25,12 +25,15 @@ from ..schemas import (
     SettlementOut,
     TokenResponse,
 )
+from ..promptpay import payload_to_data_uri
 from ..security import create_access_token, create_admin_token, verify_password
 from ..serializers import charge_to_out
 from ..settings_store import (
     AUTO_BANK_CHECK,
     CREDIT_PER_TRANSACTION,
     DEFAULT_CREDIT_PER_TRANSACTION,
+    LINE_BOT_RECONNECT,
+    LINE_BOT_STATE,
     PLATFORM_PROMPTPAY,
     PLATFORM_RECEIVER_ACCOUNT,
     PLATFORM_RECEIVER_NAME,
@@ -42,6 +45,7 @@ from ..settings_store import (
     set_bool,
     set_str,
 )
+import json
 import secrets
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -62,6 +66,38 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
 @router.get("/me", response_model=AdminOut)
 def me(admin: AdminUser = Depends(get_current_admin)):
     return admin
+
+
+# ---- LINE bridge/bot connection ----
+@router.get("/line-bot")
+def line_bot_status(admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Current LINE bot connection state for the admin console. When the bot is
+    waiting for a QR login we render its QR as an image so the admin can scan it."""
+    raw = get_str(db, LINE_BOT_STATE, "")
+    try:
+        state = json.loads(raw) if raw else {}
+    except ValueError:
+        state = {}
+    status_ = state.get("status") or "unknown"
+    qr_image = None
+    if status_ == "awaiting_qr" and state.get("qr_url"):
+        qr_image = payload_to_data_uri(state["qr_url"])
+    return {
+        "status": status_,
+        "display_name": state.get("display_name"),
+        "updated_at": state.get("updated_at"),
+        "qr_image": qr_image,
+        "reconnect_pending": get_str(db, LINE_BOT_RECONNECT, "") == "1",
+    }
+
+
+@router.post("/line-bot/reconnect")
+def line_bot_reconnect(admin: AdminUser = Depends(get_current_admin), db: Session = Depends(get_db)):
+    """Ask the bot to drop its LINE session and show a fresh QR (e.g. to switch
+    the account). The bot picks this up on its next heartbeat, then re-logs in."""
+    set_str(db, LINE_BOT_RECONNECT, "1")
+    audit.record(db, action="line_bot.reconnect", actor=admin.email)
+    return {"ok": True}
 
 
 # ---- Platform settings ----

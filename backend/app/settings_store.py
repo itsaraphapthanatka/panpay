@@ -19,6 +19,8 @@ TOPUP_INGEST_KEY = "topup_ingest_key"      # secret for the platform top-up forw
 CREDIT_PER_TRANSACTION = "credit_per_transaction"  # global credit charged per processed txn
 DEFAULT_CREDIT_PER_TRANSACTION = "0.5"
 TOPUP_UNIQUE_SATANG = "topup_unique_satang"  # add a unique satang suffix to top-up amounts
+LINE_BOT_STATE = "line_bot_state"          # JSON: LINE bridge/bot connection state (published by the bot)
+LINE_BOT_RECONNECT = "line_bot_reconnect"  # "1" asks the bot to drop its session and re-login (fresh QR)
 
 
 def get_bool(db: Session, key: str, default: bool = False) -> bool:

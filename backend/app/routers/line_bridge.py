@@ -10,9 +10,11 @@ amount-only matching is ambiguous and notification text can be spoofed. Use the
 slip-verification API as the real source of truth.
 """
 
+import json
+import secrets
 from datetime import timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -21,6 +23,13 @@ from ..database import get_db
 from ..deps import get_api_merchant
 from ..models import Charge, Merchant, Payment, Subscription, utcnow
 from ..ratelimit import limit_api
+from ..settings_store import (
+    LINE_BOT_RECONNECT,
+    LINE_BOT_STATE,
+    ensure_ingest_key,
+    get_str,
+    set_str,
+)
 from ..subscription_ops import advance_on_payment
 from ..webhooks import deliver_webhook, enqueue_charge_event, enqueue_subscription_event
 
@@ -28,6 +37,39 @@ router = APIRouter(prefix="/v1/line", tags=["line bridge"], dependencies=[Depend
 
 AMOUNT_TOLERANCE = 0.005
 MATCH_WINDOW_HOURS = 24
+
+
+class BotState(BaseModel):
+    # starting | awaiting_qr | connected | logged_out
+    status: str
+    qr_url: str | None = None
+    display_name: str | None = None
+
+
+@router.post("/bot-state")
+def bot_state(
+    body: BotState,
+    x_ingest_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """The LINE bridge publishes its connection state here (auth: platform ingest
+    key) so the admin console can show the login QR / status. Returns whether a
+    reconnect was requested; the flag is one-shot (cleared as it's handed out)."""
+    expected = ensure_ingest_key(db)
+    if not x_ingest_key or not secrets.compare_digest(x_ingest_key, expected):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid ingest key")
+
+    set_str(db, LINE_BOT_STATE, json.dumps({
+        "status": body.status,
+        "qr_url": body.qr_url,
+        "display_name": body.display_name,
+        "updated_at": utcnow().isoformat(),
+    }))
+
+    reconnect = get_str(db, LINE_BOT_RECONNECT, "") == "1"
+    if reconnect:
+        set_str(db, LINE_BOT_RECONNECT, "")  # consume: act on it once
+    return {"reconnect": reconnect}
 
 
 class LineTransfer(BaseModel):

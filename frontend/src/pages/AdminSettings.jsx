@@ -11,6 +11,75 @@ function Switch({ checked, disabled, onChange }) {
   );
 }
 
+function LineBotSection() {
+  const [bot, setBot] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ui = useDialog();
+
+  async function load() {
+    try { setBot(await adminApi.lineBot()); setErr(""); } catch (e) { setErr(e.message); }
+  }
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 4000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function reconnect() {
+    const ok = await ui.confirm({
+      title: "เชื่อม LINE ใหม่",
+      message: "ตัดการเชื่อมต่อบัญชีเดิมแล้วขึ้น QR ใหม่? บอทจะหยุดอ่านเงินเข้าชั่วครู่จนกว่าจะสแกนบัญชีใหม่",
+      confirmLabel: "เชื่อมใหม่", danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try { await adminApi.lineBotReconnect(); await load(); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  }
+
+  const status = bot?.status;
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="set-section" style={{ borderBottom: "none", paddingBottom: 0 }}>
+        <h3 className="set-head">LINE Bot (อ่านเงินเข้า + เช็คยอด)</h3>
+        <p className="set-desc">
+          บอท LINE อ่านแจ้งเตือนเงินเข้าเพื่อยืนยันการชำระอัตโนมัติ และตอบข้อความ “ยอดเงิน” — เชื่อมบัญชีโดยสแกน QR
+        </p>
+        {err && <div className="error">{err}</div>}
+        {!bot ? (
+          <div className="muted">กำลังโหลด…</div>
+        ) : status === "connected" ? (
+          <div>
+            <div className="notice">✅ เชื่อมแล้ว — บัญชี: <strong>{bot.display_name || "(ไม่ทราบชื่อ)"}</strong></div>
+            <button className="btn ghost" disabled={busy} onClick={reconnect} style={{ marginTop: 12 }}>
+              {busy ? "กำลังส่งคำขอ…" : "เชื่อมใหม่ / เปลี่ยนบัญชี"}
+            </button>
+          </div>
+        ) : status === "awaiting_qr" && bot.qr_image ? (
+          <div style={{ textAlign: "center" }}>
+            <p className="muted" style={{ marginBottom: 10 }}>
+              เปิดแอป LINE (บัญชีที่รับแจ้งเตือนเงินเข้า) → เมนู … → สแกน QR → ส่องที่โค้ดด้านล่าง
+            </p>
+            <img src={bot.qr_image} alt="LINE login QR"
+                 style={{ width: 260, height: 260, borderRadius: 12, border: "1px solid var(--border, #e2e8f0)" }} />
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+              QR รีเฟรชอัตโนมัติเมื่อหมดอายุ • {bot.reconnect_pending ? "กำลังรอเชื่อมใหม่…" : "รอสแกน…"}
+            </p>
+          </div>
+        ) : (
+          <div className="muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="pay-spinner" aria-hidden="true" />
+            {bot.reconnect_pending ? "กำลังตัดการเชื่อมต่อเพื่อขึ้น QR ใหม่…"
+              : status === "starting" ? "บอทกำลังเริ่มทำงาน…"
+              : "ยังไม่เชื่อมบัญชี — กำลังรอ QR…"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminSettings() {
   const [s, setS] = useState(null);
   const [pp, setPp] = useState("");
@@ -144,6 +213,8 @@ export default function AdminSettings() {
           </div>
         </div>
       )}
+
+      <LineBotSection />
     </div>
   );
 }

@@ -9,6 +9,8 @@
 // ⚠️ SelfBots violate LINE's Terms of Service and can get the account banned.
 // This is a convenience experiment — slip verification remains the source of truth.
 
+import fs from "node:fs";
+
 import { BaseClient } from "@evex/linejs/base";
 import { FileStorage } from "@evex/linejs/storage";
 import { parseMessage } from "./parser.mjs";
@@ -28,11 +30,75 @@ if (!API_KEY) {
 }
 
 const storage = new FileStorage("./storage.json");
-const client = new BaseClient({ device: "DESKTOPWIN", storage });
 
-client.on("qrcall", (url) => console.log("[LINE] Scan this QR / open to log in:\n", url));
-client.on("pincall", (pin) => console.log("[LINE] Enter this PIN on your phone:", pin));
-client.on("update:authtoken", (t) => storage.set(".auth", t));
+// ---- Connection state published to the backend for the admin console ----
+let currentStatus = "starting"; // starting | awaiting_qr | connected
+let lastQrUrl = null;
+let displayName = null;
+
+/** Publish current state to the backend; returns {reconnect} (needs the ingest key). */
+async function publishState(status, extra = {}) {
+  if (!INGEST_KEY) return { reconnect: false };
+  try {
+    const res = await fetch(`${PANPAY_URL}/v1/line/bot-state`, {
+      method: "POST",
+      headers: { "x-ingest-key": INGEST_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ status, ...extra }),
+    });
+    return res.ok ? await res.json() : { reconnect: false };
+  } catch {
+    return { reconnect: false };
+  }
+}
+
+/** If the admin asked to reconnect, drop the LINE session and restart for a fresh QR. */
+async function handleReconnect(resp) {
+  if (!resp || !resp.reconnect) return;
+  console.log("[LINE] reconnect requested — dropping session, restarting for a fresh QR");
+  try { await storage.delete?.(".auth"); } catch { /* ignore */ }
+  try { fs.rmSync(new URL("./storage.json", import.meta.url), { force: true }); } catch { /* ignore */ }
+  process.exit(0); // systemd restarts us -> no cached token -> QR login
+}
+
+function bindHandlers(client) {
+  client.on("qrcall", (url) => {
+    currentStatus = "awaiting_qr";
+    lastQrUrl = url;
+    console.log("[LINE] Scan this QR / open to log in:\n", url);
+    publishState("awaiting_qr", { qr_url: url });
+  });
+  client.on("pincall", (pin) => console.log("[LINE] Enter this PIN on your phone:", pin));
+  client.on("update:authtoken", (t) => storage.set(".auth", t));
+}
+
+/** Return a logged-in client: resume from cache, else QR login (regenerating a
+ *  fresh QR whenever the previous one expires, so the admin isn't racing a timer). */
+async function connect() {
+  const cached = await storage.get(".auth");
+  if (typeof cached === "string") {
+    const client = new BaseClient({ device: "DESKTOPWIN", storage });
+    bindHandlers(client);
+    try {
+      await client.loginProcess.login({ authToken: cached });
+      return client;
+    } catch (e) {
+      console.log("[LINE] cached token rejected (", e.message, ") — fresh QR login");
+      await storage.delete?.(".auth");
+    }
+  }
+  for (let attempt = 1; ; attempt++) {
+    const client = new BaseClient({ device: "DESKTOPWIN", storage });
+    bindHandlers(client);
+    try {
+      await client.loginProcess.login({});
+      return client;
+    } catch (e) {
+      console.log(`[LINE] QR login attempt ${attempt} failed (${e.message}) — new QR in 2s`);
+      currentStatus = "awaiting_qr";
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+}
 
 async function tryPost(path, headers, payload, label) {
   try {
@@ -82,9 +148,23 @@ async function balanceReply() {
   return `💰 ยอดเงินคงเหลือ: ${formatTHB(d.balance)}\nค่าธรรมเนียม/รายการ: ${formatTHB(d.credit_per_transaction)}`;
 }
 
-const cached = await storage.get(".auth");
-await client.loginProcess.login(typeof cached === "string" ? { authToken: cached } : {});
-console.log("[LINE] Logged in. Listening for transfer notifications…");
+// Heartbeat: keep the admin console's state fresh and pick up reconnect requests.
+setInterval(async () => {
+  const extra =
+    currentStatus === "awaiting_qr" ? { qr_url: lastQrUrl }
+    : currentStatus === "connected" ? { display_name: displayName }
+    : {};
+  handleReconnect(await publishState(currentStatus, extra));
+}, 5000);
+
+const client = await connect();
+currentStatus = "connected";
+try {
+  const me = await client.talk.getProfile();
+  displayName = me.displayName;
+} catch { /* profile is best-effort */ }
+await publishState("connected", { display_name: displayName });
+console.log(`[LINE] Logged in${displayName ? ` as ${displayName}` : ""}. Listening…`);
 
 for await (const op of client.createPolling().listenTalkEvents()) {
   if (op.type !== "RECEIVE_MESSAGE") continue;
