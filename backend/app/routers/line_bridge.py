@@ -28,6 +28,10 @@ from ..settings_store import (
     LINE_BOT_STATE,
     ensure_ingest_key,
     get_str,
+    line_bot_action_key,
+    line_bot_enabled_key,
+    line_bot_enabled_merchant_ids,
+    line_bot_state_key,
     set_str,
 )
 from ..subscription_ops import advance_on_payment
@@ -132,3 +136,66 @@ def line_transfer(
         background.add_task(deliver_webhook, delivery.id, charge.merchant.webhook_secret)
 
     return {"matched": True, "charge_id": charge.id, "amount": float(charge.amount)}
+
+
+# ---- Multi-tenant manager (per-merchant bots) ----
+class ManagerState(BaseModel):
+    merchant_id: str
+    status: str                       # starting | awaiting_qr | connected
+    qr_url: str | None = None
+    display_name: str | None = None
+
+
+def _require_ingest(x_ingest_key: str | None, db: Session) -> None:
+    expected = ensure_ingest_key(db)
+    if not x_ingest_key or not secrets.compare_digest(x_ingest_key, expected):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid ingest key")
+
+
+@router.get("/manager/merchants")
+def manager_merchants(x_ingest_key: str | None = Header(default=None), db: Session = Depends(get_db)):
+    """Merchant ids that want a LINE bot running (the manager reconciles to this)."""
+    _require_ingest(x_ingest_key, db)
+    return {"merchant_ids": line_bot_enabled_merchant_ids(db)}
+
+
+@router.post("/manager/state")
+def manager_state(
+    body: ManagerState,
+    x_ingest_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """The manager publishes one merchant's bot state and learns the desired
+    action (enabled? one-shot reconnect?) to reconcile against."""
+    _require_ingest(x_ingest_key, db)
+    set_str(db, line_bot_state_key(body.merchant_id), json.dumps({
+        "status": body.status,
+        "qr_url": body.qr_url,
+        "display_name": body.display_name,
+        "updated_at": utcnow().isoformat(),
+    }))
+    enabled = get_str(db, line_bot_enabled_key(body.merchant_id), "") == "1"
+    action = get_str(db, line_bot_action_key(body.merchant_id), "")
+    if action:
+        set_str(db, line_bot_action_key(body.merchant_id), "")  # one-shot
+    return {"enabled": enabled, "action": action}
+
+
+@router.get("/manager/balance/{merchant_id}")
+def manager_balance(
+    merchant_id: str,
+    x_ingest_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """Wallet balance for a merchant, so the manager can answer "ยอดเงิน"."""
+    _require_ingest(x_ingest_key, db)
+    from ..billing import credit_rate
+
+    merchant = db.get(Merchant, merchant_id)
+    if not merchant:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Merchant not found")
+    return {
+        "balance": float(merchant.balance or 0),
+        "credit_per_transaction": credit_rate(db, merchant),
+        "business_name": merchant.business_name,
+    }

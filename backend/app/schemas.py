@@ -212,6 +212,10 @@ class BankIncomingRequest(BaseModel):
         description="receiving PromptPay id the money landed in; scopes platform-wide "
         "matching to charges for that account (e.g. one shared collection account)",
     )
+    merchant_id: str | None = Field(
+        default=None,
+        description="scope matching to this merchant's charges (per-merchant LINE bot)",
+    )
     raw: dict = Field(default_factory=dict, description="raw notification text/payload for the record")
 
 

@@ -27,10 +27,20 @@ from ..schemas import (
     SettlementGenerate,
     SettlementOut,
 )
+from ..promptpay import payload_to_data_uri
 from ..security import generate_api_key
 from ..serializers import charge_to_out
+from ..settings_store import (
+    get_str,
+    line_bot_action_key,
+    line_bot_enabled_key,
+    line_bot_state_key,
+    set_str,
+)
 from ..settlement_ops import generate_settlement, mark_paid_out
 from ..webhooks import deliver_webhook, enqueue_charge_event
+
+import json as _json
 
 
 def _csv_response(content: str, filename: str) -> Response:
@@ -401,3 +411,54 @@ def stats(
         today_count=len(today_paid),
         series=list(buckets.values()),
     )
+
+
+# ---- Per-merchant LINE bot (multi-tenant manager) ----
+def _line_bot_state(db: Session, merchant: Merchant) -> dict:
+    raw = get_str(db, line_bot_state_key(merchant.id), "")
+    try:
+        state = _json.loads(raw) if raw else {}
+    except ValueError:
+        state = {}
+    enabled = get_str(db, line_bot_enabled_key(merchant.id), "") == "1"
+    status_ = state.get("status") or ("connecting" if enabled else "off")
+    qr_image = None
+    if enabled and status_ == "awaiting_qr" and state.get("qr_url"):
+        qr_image = payload_to_data_uri(state["qr_url"])
+    return {
+        "enabled": enabled,
+        "status": status_ if enabled else "off",
+        "display_name": state.get("display_name"),
+        "updated_at": state.get("updated_at"),
+        "qr_image": qr_image,
+    }
+
+
+@router.get("/line-bot")
+def line_bot_status(merchant: Merchant = Depends(get_current_merchant), db: Session = Depends(get_db)):
+    """This merchant's LINE bot state (QR to scan when connecting, else status)."""
+    return _line_bot_state(db, merchant)
+
+
+@router.post("/line-bot/connect")
+def line_bot_connect(merchant: Merchant = Depends(get_current_merchant), db: Session = Depends(get_db)):
+    set_str(db, line_bot_enabled_key(merchant.id), "1")
+    set_str(db, line_bot_action_key(merchant.id), "reconnect")  # force a fresh login
+    audit.record(db, action="line_bot.connect", actor=merchant.email, merchant_id=merchant.id)
+    return _line_bot_state(db, merchant)
+
+
+@router.post("/line-bot/reconnect")
+def line_bot_reconnect(merchant: Merchant = Depends(get_current_merchant), db: Session = Depends(get_db)):
+    set_str(db, line_bot_enabled_key(merchant.id), "1")
+    set_str(db, line_bot_action_key(merchant.id), "reconnect")
+    audit.record(db, action="line_bot.reconnect", actor=merchant.email, merchant_id=merchant.id)
+    return _line_bot_state(db, merchant)
+
+
+@router.post("/line-bot/disconnect")
+def line_bot_disconnect(merchant: Merchant = Depends(get_current_merchant), db: Session = Depends(get_db)):
+    set_str(db, line_bot_enabled_key(merchant.id), "")
+    set_str(db, line_bot_action_key(merchant.id), "disconnect")
+    audit.record(db, action="line_bot.disconnect", actor=merchant.email, merchant_id=merchant.id)
+    return _line_bot_state(db, merchant)

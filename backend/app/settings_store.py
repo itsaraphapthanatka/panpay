@@ -23,6 +23,25 @@ LINE_BOT_STATE = "line_bot_state"          # JSON: LINE bridge/bot connection st
 LINE_BOT_RECONNECT = "line_bot_reconnect"  # "1" asks the bot to drop its session and re-login (fresh QR)
 
 
+# Per-merchant LINE bot (multi-tenant manager). Keys are namespaced by merchant id.
+def line_bot_enabled_key(mid: str) -> str:
+    return f"linebot:{mid}:enabled"   # "1" => this merchant wants a bot running
+
+
+def line_bot_action_key(mid: str) -> str:
+    return f"linebot:{mid}:action"    # one-shot: "reconnect" (manager consumes it)
+
+
+def line_bot_state_key(mid: str) -> str:
+    return f"linebot:{mid}:state"     # JSON state published by the manager for this merchant
+
+
+def line_bot_enabled_merchant_ids(db: Session) -> list[str]:
+    """Merchant ids that currently want a LINE bot running."""
+    rows = db.query(Setting).filter(Setting.key.like("linebot:%:enabled")).all()
+    return [r.key.split(":", 2)[1] for r in rows if str(r.value) == "1"]
+
+
 def get_bool(db: Session, key: str, default: bool = False) -> bool:
     row = db.get(Setting, key)
     if row is None:

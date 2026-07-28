@@ -1,0 +1,15 @@
+{
+  "name": "panpay-line-manager",
+  "private": true,
+  "type": "module",
+  "description": "Multi-tenant LINE bot manager: one child bot per merchant (auto-confirm + balance)",
+  "scripts": {
+    "start": "node --env-file=.env manager.mjs"
+  },
+  "dependencies": {
+    "@evex/linejs": "npm:@jsr/evex__linejs@^3.1.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

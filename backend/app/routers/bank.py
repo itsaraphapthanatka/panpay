@@ -164,3 +164,57 @@ def incoming_platform(
                  target_type="charge", target_id=charge.id, request=request, extra={"amount": body.amount})
     return BankIncomingResult(matched=True, charge_id=charge.id, amount=float(charge.amount),
                               candidates=len(candidates))
+
+
+@router.post("/incoming/for-merchant", response_model=BankIncomingResult)
+def incoming_for_merchant(
+    body: BankIncomingRequest,
+    request: Request,
+    background: BackgroundTasks,
+    x_ingest_key: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """Settle a pending charge for ONE specific merchant (their per-merchant LINE
+    bot watches their own bank account). Auth: platform ingest key; the merchant
+    is identified by body.merchant_id, so the manager needs no merchant API keys."""
+    expected = ensure_ingest_key(db)
+    if not x_ingest_key or not secrets.compare_digest(x_ingest_key, expected):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid ingest key")
+    if not body.merchant_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "merchant_id is required")
+    if not get_bool(db, AUTO_BANK_CHECK, default=True):
+        return BankIncomingResult(matched=False, reason="auto_check_disabled",
+                                  amount=body.amount, candidates=0)
+
+    now = utcnow()
+    candidates = (
+        db.query(Charge)
+        .filter(
+            Charge.merchant_id == body.merchant_id,
+            Charge.status == "pending",
+            func.abs(Charge.amount - body.amount) <= AMOUNT_TOLERANCE,
+            (Charge.expires_at.is_(None)) | (Charge.expires_at >= now),
+        )
+        .order_by(Charge.created_at.asc())
+        .all()
+    )
+    if not candidates:
+        return BankIncomingResult(matched=False, reason="no_pending_charge_for_amount",
+                                  amount=body.amount, candidates=0)
+    if len(candidates) > 1:
+        return BankIncomingResult(matched=False, reason="ambiguous_amount",
+                                  amount=body.amount, candidates=len(candidates))
+
+    charge = candidates[0]
+    trans_ref = body.ref or ("BANK" + secrets.token_hex(10).upper())
+    raw = {"source": "bank_notify_merchant", "ref": body.ref, "sender_name": body.sender_name, **body.raw}
+    settle_charge_paid(
+        db, background, charge,
+        trans_ref=trans_ref, amount=float(charge.amount),
+        sender_name=body.sender_name, transferred_at=body.transferred_at or now,
+        provider="bank_notify", raw=raw,
+    )
+    audit.record(db, action="charge.bank_paid", actor="bank_merchant", merchant_id=charge.merchant_id,
+                 target_type="charge", target_id=charge.id, request=request, extra={"amount": body.amount})
+    return BankIncomingResult(matched=True, charge_id=charge.id, amount=float(charge.amount),
+                              candidates=len(candidates))

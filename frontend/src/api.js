@@ -95,6 +95,11 @@ export const api = {
   refundCharge: (id, reason) => request(`/dashboard/charges/${id}/refund`, { method: "POST", body: { reason } }),
   // top-up / wallet
   balance: () => request("/dashboard/balance"),
+
+  lineBot: () => request("/dashboard/line-bot"),
+  lineBotConnect: () => request("/dashboard/line-bot/connect", { method: "POST" }),
+  lineBotReconnect: () => request("/dashboard/line-bot/reconnect", { method: "POST" }),
+  lineBotDisconnect: () => request("/dashboard/line-bot/disconnect", { method: "POST" }),
   listTopups: () => request("/dashboard/topups"),
   createTopup: (amount) => request("/dashboard/topups", { method: "POST", body: { amount } }),
   getTopup: (id) => request(`/dashboard/topups/${id}`),

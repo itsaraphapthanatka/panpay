@@ -75,6 +75,63 @@ function ReceivingAccounts({ onError }) {
   );
 }
 
+function LineBotCard({ onError }) {
+  const [bot, setBot] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    try { setBot(await api.lineBot()); } catch (e) { onError(e.message); }
+  }
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 4000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function act(fn) {
+    setBusy(true);
+    try { setBot(await fn()); } catch (e) { onError(e.message); } finally { setBusy(false); }
+  }
+
+  const status = bot?.status;
+  return (
+    <div className="card">
+      <strong>LINE Bot (ยืนยันเงินเข้า + เช็คยอด)</strong>
+      <p className="muted" style={{ fontSize: 13 }}>
+        เชื่อมบัญชี LINE ของร้าน (บัญชีที่รับแจ้งเตือนเงินเข้าจากธนาคาร) → ระบบยืนยันการชำระให้อัตโนมัติ และตอบข้อความ “ยอดเงิน”
+      </p>
+      {!bot ? (
+        <div className="muted">กำลังโหลด…</div>
+      ) : !bot.enabled ? (
+        <button className="btn" disabled={busy} onClick={() => act(api.lineBotConnect)}>
+          {busy ? "กำลังเริ่ม…" : "เชื่อม LINE Bot"}
+        </button>
+      ) : status === "connected" ? (
+        <div>
+          <div className="notice">✅ เชื่อมแล้ว — บัญชี: <strong>{bot.display_name || "(ไม่ทราบชื่อ)"}</strong></div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button className="btn ghost" disabled={busy} onClick={() => act(api.lineBotReconnect)}>เชื่อมใหม่ / เปลี่ยนบัญชี</button>
+            <button className="btn danger" disabled={busy} onClick={() => act(api.lineBotDisconnect)}>ยกเลิกการเชื่อม</button>
+          </div>
+        </div>
+      ) : status === "awaiting_qr" && bot.qr_image ? (
+        <div style={{ textAlign: "center" }}>
+          <p className="muted" style={{ marginBottom: 10 }}>เปิดแอป LINE → เมนู … → สแกน QR → ส่องที่โค้ดด้านล่าง</p>
+          <img src={bot.qr_image} alt="LINE login QR"
+               style={{ width: 240, height: 240, borderRadius: 12, border: "1px solid var(--border, #e2e8f0)" }} />
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>QR รีเฟรชอัตโนมัติเมื่อหมดอายุ • รอสแกน…</p>
+          <button className="btn danger" disabled={busy} onClick={() => act(api.lineBotDisconnect)} style={{ padding: "4px 10px", marginTop: 8 }}>ยกเลิก</button>
+        </div>
+      ) : (
+        <div className="muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="pay-spinner" aria-hidden="true" /> กำลังเชื่อมต่อ… (รอ QR)
+          <button className="btn danger" disabled={busy} onClick={() => act(api.lineBotDisconnect)} style={{ padding: "4px 10px", marginLeft: 8 }}>ยกเลิก</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Settings() {
   const { merchant, refresh } = useAuth();
   const [form, setForm] = useState({ business_name: "", promptpay_id: "", webhook_url: "", bank_account: "" });
@@ -159,6 +216,10 @@ assert sig == request.headers["X-Panpay-Signature"]`}
 
       <div style={{ marginTop: 16 }}>
         <ReceivingAccounts onError={setErr} />
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <LineBotCard onError={setErr} />
       </div>
     </div>
   );
