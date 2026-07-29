@@ -108,7 +108,7 @@ async function connect() {
     } catch (e) {
       console.log(`[LINE] QR login attempt ${attempt} failed (${e.message}) — new QR in 2s`);
       currentStatus = "awaiting_qr";
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 6000));
     }
   }
 }
