@@ -26,6 +26,16 @@ test("ignores balance-only messages", () => {
   assert.equal(parseTransfer("ยอดเงินคงเหลือ 10,000.00 บาท"), null);
 });
 
+test("parses BAAC-style text (บ unit) and skips the balance", () => {
+  const t = "29/07/69 22:58 บช X9951 รับโอนพร้อมเพย์ 1.01 บ ยอดคงเหลือ 62.71 บ";
+  assert.equal(parseTransfer(t).amount, 1.01); // the transfer, not คงเหลือ 62.71
+});
+
+test("does not mistake บช/บัญชี for the บ baht unit", () => {
+  // "5 บช" must not parse as 5 baht; only "บ" as a standalone unit counts
+  assert.equal(parseTransfer("รับโอน บช 123 ยอดคงเหลือ 5 บ"), null);
+});
+
 test("ignores non-money chatter", () => {
   assert.equal(parseTransfer("สวัสดีครับ พรุ่งนี้ว่างไหม"), null);
 });

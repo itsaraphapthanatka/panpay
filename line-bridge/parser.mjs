@@ -108,15 +108,25 @@ export function parseTransfer(text) {
   if (!CREDIT_KEYWORDS.some((re) => re.test(text))) return null;
   if (DEBIT_KEYWORDS.some((re) => re.test(text))) return null;
 
-  // "1,234.56 บาท" / "500.00 THB" / "฿250.00"
-  const m =
-    text.match(/([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:บาท|THB|baht)/i) ||
-    text.match(/(?:฿|THB)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
-  if (!m) return null;
-
-  const amount = parseFloat(m[1].replace(/,/g, ""));
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  return { amount, text };
+  // Amounts like "1,234.56 บาท" / "1.01 บ" (BAAC abbreviates บาท -> บ) / "500 THB".
+  // Skip the balance — the amount after "คงเหลือ" — so we return the transfer amount.
+  // "บ" only counts as the baht unit when not followed by another Thai letter
+  // (so "บช" = บัญชี, "บาท" handled separately, aren't mistaken for it).
+  const re = /([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{1,2})?|[0-9]+(?:\.[0-9]{1,2})?)\s*(?:บาท|บ(?=\s|$|[^ก-๙])|THB|baht)/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const before = text.slice(Math.max(0, m.index - 12), m.index);
+    if (/คงเหลือ/.test(before)) continue; // this is the balance, not the transfer
+    const amount = parseFloat(m[1].replace(/,/g, ""));
+    if (Number.isFinite(amount) && amount > 0) return { amount, text };
+  }
+  // Fallback: "฿250.00" prefix form.
+  const p = text.match(/(?:฿|THB)\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)/i);
+  if (p) {
+    const amount = parseFloat(p[1].replace(/,/g, ""));
+    if (Number.isFinite(amount) && amount > 0) return { amount, text };
+  }
+  return null;
 }
 
 /**
