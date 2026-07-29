@@ -429,6 +429,8 @@ def _line_bot_state(db: Session, merchant: Merchant) -> dict:
         "enabled": enabled,
         "status": status_ if enabled else "off",
         "display_name": state.get("display_name"),
+        "mid": state.get("mid"),
+        "picture_url": state.get("picture_url"),
         "updated_at": state.get("updated_at"),
         "qr_image": qr_image,
     }

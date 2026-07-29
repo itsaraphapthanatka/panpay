@@ -48,6 +48,8 @@ class BotState(BaseModel):
     status: str
     qr_url: str | None = None
     display_name: str | None = None
+    mid: str | None = None
+    picture_url: str | None = None
 
 
 @router.post("/bot-state")
@@ -67,6 +69,8 @@ def bot_state(
         "status": body.status,
         "qr_url": body.qr_url,
         "display_name": body.display_name,
+        "mid": body.mid,
+        "picture_url": body.picture_url,
         "updated_at": utcnow().isoformat(),
     }))
 
@@ -144,6 +148,8 @@ class ManagerState(BaseModel):
     status: str                       # starting | awaiting_qr | connected
     qr_url: str | None = None
     display_name: str | None = None
+    mid: str | None = None
+    picture_url: str | None = None
 
 
 def _require_ingest(x_ingest_key: str | None, db: Session) -> None:
@@ -172,6 +178,8 @@ def manager_state(
         "status": body.status,
         "qr_url": body.qr_url,
         "display_name": body.display_name,
+        "mid": body.mid,
+        "picture_url": body.picture_url,
         "updated_at": utcnow().isoformat(),
     }))
     enabled = get_str(db, line_bot_enabled_key(body.merchant_id), "") == "1"

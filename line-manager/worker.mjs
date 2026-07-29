@@ -30,6 +30,13 @@ const storage = new FileStorage(STORAGE_FILE);
 let currentStatus = "starting"; // starting | awaiting_qr | connected
 let lastQrUrl = null;
 let displayName = null;
+let lineMid = null;
+let linePicture = null;
+
+function pictureUrl(me) {
+  const p = me?.picturePath || me?.picture;
+  return typeof p === "string" && p.startsWith("/") ? `https://profile.line-scdn.net${p}` : null;
+}
 
 const ingestHeaders = { "x-ingest-key": INGEST_KEY, "Content-Type": "application/json" };
 
@@ -122,15 +129,20 @@ async function connect() {
 setInterval(async () => {
   const extra =
     currentStatus === "awaiting_qr" ? { qr_url: lastQrUrl }
-    : currentStatus === "connected" ? { display_name: displayName }
+    : currentStatus === "connected" ? { display_name: displayName, mid: lineMid, picture_url: linePicture }
     : {};
   maybeReconnect(await publishState(currentStatus, extra));
 }, 5000);
 
 const client = await connect();
 currentStatus = "connected";
-try { const me = await client.talk.getProfile(); displayName = me.displayName; } catch { /* best effort */ }
-await publishState("connected", { display_name: displayName });
+try {
+  const me = await client.talk.getProfile();
+  displayName = me.displayName;
+  lineMid = me.mid;
+  linePicture = pictureUrl(me);
+} catch { /* best effort */ }
+await publishState("connected", { display_name: displayName, mid: lineMid, picture_url: linePicture });
 console.log(`${tag} logged in${displayName ? ` as ${displayName}` : ""}. Listening…`);
 
 for await (const op of client.createPolling().listenTalkEvents()) {

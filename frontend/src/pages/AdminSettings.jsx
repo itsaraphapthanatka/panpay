@@ -51,7 +51,16 @@ function LineBotSection() {
           <div className="muted">กำลังโหลด…</div>
         ) : status === "connected" ? (
           <div>
-            <div className="notice">✅ เชื่อมแล้ว — บัญชี: <strong>{bot.display_name || "(ไม่ทราบชื่อ)"}</strong></div>
+            <div className="notice" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {bot.picture_url && (
+                <img src={bot.picture_url} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }}
+                     style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+              )}
+              <div>
+                <div>✅ เชื่อมกับ LINE: <strong>{bot.display_name || "(ไม่ทราบชื่อ)"}</strong></div>
+                {bot.mid && <div className="muted" style={{ fontSize: 12 }}>LINE ID: <span className="mono">{bot.mid}</span></div>}
+              </div>
+            </div>
             <button className="btn ghost" disabled={busy} onClick={reconnect} style={{ marginTop: 12 }}>
               {busy ? "กำลังส่งคำขอ…" : "เชื่อมใหม่ / เปลี่ยนบัญชี"}
             </button>

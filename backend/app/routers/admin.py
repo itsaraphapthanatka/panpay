@@ -85,6 +85,8 @@ def line_bot_status(admin: AdminUser = Depends(get_current_admin), db: Session =
     return {
         "status": status_,
         "display_name": state.get("display_name"),
+        "mid": state.get("mid"),
+        "picture_url": state.get("picture_url"),
         "updated_at": state.get("updated_at"),
         "qr_image": qr_image,
         "reconnect_pending": get_str(db, LINE_BOT_RECONNECT, "") == "1",
