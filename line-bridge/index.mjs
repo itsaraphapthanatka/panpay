@@ -132,12 +132,12 @@ async function tryPost(path, headers, payload, label) {
 async function reportTransfer(amount, messageId, sender) {
   const ref = `LINE:${messageId}`;
   if (INGEST_KEY) {
-    // Shared-account model: one bridge confirms charges for ANY merchant that
-    // collects into the watched account, then merchant credit top-ups.
-    if (await tryPost("/bank/incoming/platform", { "x-ingest-key": INGEST_KEY },
-        { amount, ref, sender_name: sender, account: ACCOUNT }, "charge")) return;
-    await tryPost("/topup/incoming", { "x-ingest-key": INGEST_KEY },
-        { amount, ref, sender_name: sender }, "topup");
+    // Platform account: mostly merchant credit top-ups, so match those first;
+    // fall back to a charge for any merchant that also collects into this account.
+    if (await tryPost("/topup/incoming", { "x-ingest-key": INGEST_KEY },
+        { amount, ref, sender_name: sender }, "topup")) return;
+    await tryPost("/bank/incoming/platform", { "x-ingest-key": INGEST_KEY },
+        { amount, ref, sender_name: sender, account: ACCOUNT }, "charge");
     return;
   }
   // Single-merchant model: match only this API key's charges.
