@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminApi } from "../api.js";
 import { useDialog } from "../components/Dialog.jsx";
-import KBankLiveHelp from "../components/KBankLiveHelp.jsx";
+import BankAlertHelp from "../components/BankAlertHelp.jsx";
 
 function Switch({ checked, disabled, onChange }) {
   return (
@@ -91,7 +91,7 @@ function LineBotSection() {
               : "ยังไม่เชื่อมบัญชี — กำลังรอ QR…"}
           </div>
         )}
-        <KBankLiveHelp />
+        <BankAlertHelp />
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth.jsx";
 import { api } from "../api.js";
-import KBankLiveHelp from "../components/KBankLiveHelp.jsx";
+import BankAlertHelp from "../components/BankAlertHelp.jsx";
 
 function ReceivingAccounts({ onError }) {
   const [accounts, setAccounts] = useState([]);
@@ -144,7 +144,7 @@ function LineBotCard({ onError }) {
           <button className="btn danger" disabled={busy} onClick={() => act(api.lineBotDisconnect)} style={{ padding: "4px 10px", marginLeft: 8 }}>ยกเลิก</button>
         </div>
       )}
-      <KBankLiveHelp />
+      <BankAlertHelp />
     </div>
   );
 }
