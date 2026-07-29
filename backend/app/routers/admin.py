@@ -84,6 +84,7 @@ def line_bot_status(admin: AdminUser = Depends(get_current_admin), db: Session =
         qr_image = payload_to_data_uri(state["qr_url"])
     return {
         "status": status_,
+        "pin": state.get("pin") if status_ == "awaiting_pin" else None,
         "display_name": state.get("display_name"),
         "mid": state.get("mid"),
         "picture_url": state.get("picture_url"),

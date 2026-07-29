@@ -44,9 +44,10 @@ MATCH_WINDOW_HOURS = 24
 
 
 class BotState(BaseModel):
-    # starting | awaiting_qr | connected | logged_out
+    # starting | awaiting_qr | awaiting_pin | connected | logged_out
     status: str
     qr_url: str | None = None
+    pin: str | None = None
     display_name: str | None = None
     mid: str | None = None
     picture_url: str | None = None
@@ -68,6 +69,7 @@ def bot_state(
     set_str(db, LINE_BOT_STATE, json.dumps({
         "status": body.status,
         "qr_url": body.qr_url,
+        "pin": body.pin,
         "display_name": body.display_name,
         "mid": body.mid,
         "picture_url": body.picture_url,
@@ -145,8 +147,9 @@ def line_transfer(
 # ---- Multi-tenant manager (per-merchant bots) ----
 class ManagerState(BaseModel):
     merchant_id: str
-    status: str                       # starting | awaiting_qr | connected
+    status: str                       # starting | awaiting_qr | awaiting_pin | connected
     qr_url: str | None = None
+    pin: str | None = None
     display_name: str | None = None
     mid: str | None = None
     picture_url: str | None = None
@@ -177,6 +180,7 @@ def manager_state(
     set_str(db, line_bot_state_key(body.merchant_id), json.dumps({
         "status": body.status,
         "qr_url": body.qr_url,
+        "pin": body.pin,
         "display_name": body.display_name,
         "mid": body.mid,
         "picture_url": body.picture_url,

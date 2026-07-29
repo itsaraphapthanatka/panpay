@@ -32,8 +32,9 @@ if (!API_KEY) {
 const storage = new FileStorage("./storage.json");
 
 // ---- Connection state published to the backend for the admin console ----
-let currentStatus = "starting"; // starting | awaiting_qr | connected
+let currentStatus = "starting"; // starting | awaiting_qr | awaiting_pin | connected
 let lastQrUrl = null;
+let lastPin = null;
 let displayName = null;
 let lineMid = null;
 let linePicture = null;
@@ -74,7 +75,12 @@ function bindHandlers(client) {
     console.log("[LINE] Scan this QR / open to log in:\n", url);
     publishState("awaiting_qr", { qr_url: url });
   });
-  client.on("pincall", (pin) => console.log("[LINE] Enter this PIN on your phone:", pin));
+  client.on("pincall", (pin) => {
+    currentStatus = "awaiting_pin";
+    lastPin = pin;
+    console.log("[LINE] Enter this PIN on your phone:", pin);
+    publishState("awaiting_pin", { pin });
+  });
   client.on("update:authtoken", (t) => storage.set(".auth", t));
 }
 
@@ -159,6 +165,7 @@ async function balanceReply() {
 setInterval(async () => {
   const extra =
     currentStatus === "awaiting_qr" ? { qr_url: lastQrUrl }
+    : currentStatus === "awaiting_pin" ? { pin: lastPin }
     : currentStatus === "connected" ? { display_name: displayName, mid: lineMid, picture_url: linePicture }
     : {};
   handleReconnect(await publishState(currentStatus, extra));

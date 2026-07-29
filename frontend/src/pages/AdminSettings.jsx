@@ -77,6 +77,12 @@ function LineBotSection() {
               QR รีเฟรชอัตโนมัติเมื่อหมดอายุ • {bot.reconnect_pending ? "กำลังรอเชื่อมใหม่…" : "รอสแกน…"}
             </p>
           </div>
+        ) : status === "awaiting_pin" && bot.pin ? (
+          <div style={{ textAlign: "center" }}>
+            <p className="muted" style={{ marginBottom: 8 }}>สแกนแล้ว! กรอกรหัสยืนยันนี้ในแอป LINE บนมือถือ:</p>
+            <div style={{ fontSize: 42, fontWeight: 800, letterSpacing: 8, fontFamily: "monospace" }}>{bot.pin}</div>
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>กรอกให้ทันเวลา • เชื่อมเสร็จหน้าจะเปลี่ยนเอง</p>
+          </div>
         ) : (
           <div className="muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span className="pay-spinner" aria-hidden="true" />

@@ -132,6 +132,12 @@ function LineBotCard({ onError }) {
           <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>QR รีเฟรชอัตโนมัติเมื่อหมดอายุ • รอสแกน…</p>
           <button className="btn danger" disabled={busy} onClick={() => act(api.lineBotDisconnect)} style={{ padding: "4px 10px", marginTop: 8 }}>ยกเลิก</button>
         </div>
+      ) : status === "awaiting_pin" && bot.pin ? (
+        <div style={{ textAlign: "center" }}>
+          <p className="muted" style={{ marginBottom: 8 }}>สแกนแล้ว! กรอกรหัสยืนยันนี้ในแอป LINE บนมือถือ:</p>
+          <div style={{ fontSize: 42, fontWeight: 800, letterSpacing: 8, fontFamily: "monospace" }}>{bot.pin}</div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>กรอกให้ทันเวลา • เชื่อมเสร็จหน้าจะเปลี่ยนเอง</p>
+        </div>
       ) : (
         <div className="muted" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span className="pay-spinner" aria-hidden="true" /> กำลังเชื่อมต่อ… (รอ QR)

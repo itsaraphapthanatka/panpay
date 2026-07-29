@@ -428,6 +428,7 @@ def _line_bot_state(db: Session, merchant: Merchant) -> dict:
     return {
         "enabled": enabled,
         "status": status_ if enabled else "off",
+        "pin": state.get("pin") if (enabled and status_ == "awaiting_pin") else None,
         "display_name": state.get("display_name"),
         "mid": state.get("mid"),
         "picture_url": state.get("picture_url"),
