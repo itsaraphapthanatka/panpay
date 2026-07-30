@@ -86,10 +86,15 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--brand-50); 
 
 /* ---- Table ---- */
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); }
-td { padding: 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 12px; border-bottom: 1px solid var(--line); font-size: 14px; white-space: nowrap; }
 tr:last-child td { border-bottom: none; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+/* Wide tables scroll horizontally inside their card instead of overflowing the
+   page (fixes the last column spilling out of the card on small screens). */
+.card:has(table) { overflow-x: auto; }
+.card table { min-width: 560px; }
 
 /* ---- Badges ---- */
 .badge { display: inline-flex; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
@@ -120,8 +125,12 @@ tr:last-child td { border-bottom: none; }
 
 @media (max-width: 860px) {
   .shell { grid-template-columns: 1fr; }
-  .sidebar { flex-direction: row; flex-wrap: wrap; }
+  .sidebar { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .sidebar .brand-mark { width: 100%; margin-bottom: 8px; }
   .sidebar .spacer { display: none; }
+  .sidebar .signout { margin-left: auto; }
+  .main { padding: 16px; }
+  .page-title { font-size: 20px; }
   .cols-4 { grid-template-columns: 1fr 1fr; }
   .cols-2 { grid-template-columns: 1fr; }
 }
